@@ -1,0 +1,28 @@
+body {
+    color: white;
+    font-family: Comfortaa, sans-serif;
+
+}
+
+#page {
+    margin-top: 32px;
+}
+
+#titlebar {
+    display: flex;
+    background-color: #2f3241;
+    -webkit-user-select: none;
+    -webkit-app-region: drag;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 32px;
+}
+
+.titlebar-text {
+    color: #FFFFFF;
+    position: absolute;
+    top: -7px;
+    left: 10px;
+}

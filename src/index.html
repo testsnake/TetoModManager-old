@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'">
+    <link rel="stylesheet" href="index.css">
+    <title>Hello World!</title>
+</head>
+    <body>
+        <div id="titlebar">
+            <p class="titlebar-text">NewModManager</p>
+        </div>
+        <div id="page">
+            <h1>Hello World!</h1>
+            We are using Node.js <span id="node-version"></span>,
+            Chromium <span id="chrome-version"></span>,
+            and Electron <span id="electron-version"></span>.
+        </div>
+
+    </body>
+    <script src="page.js"></script>
+</html>
