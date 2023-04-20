@@ -111,12 +111,12 @@ function populateRows(mods) {
 
         const row = document.createElement('tr');
         row.innerHTML = `
-        <td>${modName}</td>
+        <td>${modName.replace(/^"(.*)"$/, '$1')}</td>
         <td><input type="checkbox" ${mod.enabled ? 'checked' : ''}></td>
-        <td>${mod.description}</td>
-        <td>${mod.author}</td>
-        <td>${mod.version}</td>
-        <td>${mod.date}</td>
+        <td>${mod.description.replace(/^"(.*)"$/, '$1')}</td>
+        <td>${mod.author.replace(/^"(.*)"$/, '$1')}</td>
+        <td>${mod.version.replace(/^"(.*)"$/, '$1')}</td>
+        <td>${mod.date.replace(/^"(.*)"$/, '$1')}</td>
       `;
 
         const checkbox = row.querySelector('input[type="checkbox"]');
@@ -127,6 +127,7 @@ function populateRows(mods) {
         tbody.appendChild(row);
     }
 }
+
 
 
 // Call the getMods function when the page has loaded
