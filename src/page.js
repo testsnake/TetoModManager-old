@@ -112,10 +112,28 @@ function populateRows(mods) {
 
 
 // Call the getMods function when the page has loaded
+// Function to launch the game
+function launchGame() {
+    ipcRenderer.send('launch-game');
+}
+
+// Function to reload the mods
+async function reloadMods() {
+    mods = await ipcRenderer.invoke('get-mods');
+    populateRows(mods);
+}
+
+// Call the getMods function when the page has loaded
 window.addEventListener('DOMContentLoaded', () => {
     getMods();
 
+    // Add event listeners for the buttons
+    const launchGameButton = document.getElementById('launch-game');
+    const reloadModsButton = document.getElementById('reload-mods');
     const searchInput = document.getElementById('search-input');
+
+    launchGameButton.addEventListener('click', launchGame);
+    reloadModsButton.addEventListener('click', reloadMods);
     searchInput.addEventListener('input', () => {
         searchMods(mods, searchInput.value);
     });

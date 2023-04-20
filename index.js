@@ -5,6 +5,9 @@ const { ipcMain } = require('electron');
 const path = require('path');
 const userData = new Store({name: 'NMM-config'});
 
+const { spawn } = require('child_process');
+
+
 
 
 
@@ -29,7 +32,11 @@ ipcMain.handle('set-mod-status', async (event, modName, shouldBeEnabled) => {
     }
 });
 
-
+ipcMain.on('launch-game', async (event) => {
+    const gamePath = await getGamePath();
+    const executablePath = path.join(gamePath, 'DivaMegaMix.exe');
+    spawn(executablePath);
+});
 
 const createWindow = () => {
     const win = new BrowserWindow({
