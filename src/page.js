@@ -11,12 +11,12 @@ async function getMods() {
     table.innerHTML = `
     <thead>
       <tr>
-        <th data-sort-key="name">Name</th>
-        <th data-sort-key="enabled">Enabled</th>
-        <th data-sort-key="description">Description</th>
-        <th data-sort-key="author">Author</th>
-        <th data-sort-key="version">Version</th>
-        <th data-sort-key="date">Date</th>
+        <th data-sort-key="name" id="header-name">Name</th>
+        <th data-sort-key="enabled" id="header-enabled">Enabled</th>
+        <th data-sort-key="description" id="header-description">Description</th>
+        <th data-sort-key="author" id="header-author">Author</th>
+        <th data-sort-key="version" id="header-version">Version</th>
+        <th data-sort-key="date" id="header-date">Date</th>
       </tr>
     </thead>
     <tbody>
@@ -31,6 +31,7 @@ async function getMods() {
 
     // Sort table rows
     function sortRows(key, asc = true) {
+        console.log('Sorting by', key, asc);
         const sortedMods = Object.entries(mods).sort((a, b) => {
             const aValue = a[1][key];
             const bValue = b[1][key];
@@ -50,6 +51,7 @@ async function getMods() {
         }
 
         populateRows(sortedModsObj);
+
     }
 
 
@@ -61,8 +63,24 @@ async function getMods() {
 
         header.addEventListener('click', () => {
             const sortKey = header.dataset.sortKey;
-            sortRows(mods, sortKey, asc);
-            asc = !asc;
+
+            // Check if the same header was clicked again
+            if (header.getAttribute('data-sorted') === 'true') {
+                // Toggle the `asc` variable if the same header was clicked
+                asc = !asc;
+            } else {
+                // Reset the `asc` variable if a different header was clicked
+                asc = true;
+            }
+
+            // Pass the `asc` variable to the `sortRows` function
+            sortRows(sortKey, asc);
+
+            // Mark all headers as unsorted
+            headers.forEach(h => h.setAttribute('data-sorted', 'false'));
+
+            // Mark the clicked header as sorted
+            header.setAttribute('data-sorted', 'true');
         });
     });
 
@@ -117,6 +135,10 @@ function launchGame() {
     ipcRenderer.send('launch-game');
 }
 
+function openModFolder() {
+    ipcRenderer.send('open-mod-folder');
+}
+
 // Function to reload the mods
 async function reloadMods() {
     mods = await ipcRenderer.invoke('get-mods');
@@ -131,9 +153,11 @@ window.addEventListener('DOMContentLoaded', () => {
     const launchGameButton = document.getElementById('launch-game');
     const reloadModsButton = document.getElementById('reload-mods');
     const searchInput = document.getElementById('search-input');
+    const openModFolderButton = document.getElementById('open-folder');
 
     launchGameButton.addEventListener('click', launchGame);
     reloadModsButton.addEventListener('click', reloadMods);
+    openModFolderButton.addEventListener('click', openModFolder);
     searchInput.addEventListener('input', () => {
         searchMods(mods, searchInput.value);
     });

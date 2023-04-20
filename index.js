@@ -38,10 +38,17 @@ ipcMain.on('launch-game', async (event) => {
     spawn(executablePath);
 });
 
+ipcMain.on('open-mod-folder', async (event) => {
+    console.log('Opening mod folder...')
+    const gamePath = await getGamePath();
+    const modPath = path.join(gamePath, 'mods');
+    spawn('explorer', [modPath]);
+});
+
 const createWindow = () => {
     const win = new BrowserWindow({
-        width: 800,
-        height: 600,
+        width: 1200,
+        height: 800,
         titleBarStyle: 'hidden',
         titleBarOverlay: {
             color: '#2f3241',
@@ -49,8 +56,8 @@ const createWindow = () => {
             height: 20
         },
         backgroundColor: '#191825',
-        minWidth: 600,
-        minHeight: 400,
+        minWidth: 800,
+        minHeight: 600,
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,

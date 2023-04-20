@@ -1,11 +1,22 @@
 body {
     color: white;
     font-family: Comfortaa, sans-serif;
+    /* Prevent the body from scrolling */
+    overflow: hidden;
+    /* Set the body height to 100% of the viewport height */
+    height: 100vh;
+    /* Set the body width to 100% of the viewport width */
+    width: 100vw;
+    /* Set the body margin to 0 to remove any default margin */
+    margin: 0;
 
 }
 
 #page {
     margin-top: 32px;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 32px);
 }
 
 #titlebar {
@@ -25,4 +36,35 @@ body {
     position: absolute;
     top: -7px;
     left: 10px;
+}
+
+.modslist {
+    /* Set the height and width of the div */
+    height: calc(100vh - 50px);
+    width: auto;
+    flex-grow: 1;
+
+
+    /* Add a border to visually separate the div from the rest of the page */
+    border: 1px solid #000;
+
+    /* Set overflow-y to 'scroll' to enable vertical scrolling */
+    overflow-y: scroll;
+
+    /* Optional: Set overflow-x to 'hidden' to prevent horizontal scrolling if content exceeds the width */
+    overflow-x: hidden;
+}
+
+.modinfo {
+
+    width: 500px;
+}
+
+#topbar {
+    display: flex;
+}
+
+.content {
+    display: flex;
+    flex-grow: 1;
 }
