@@ -1,7 +1,7 @@
 const { app, BrowserWindow } = require('electron')
 const fs = require('fs');
 const Store = require('electron-store');
-const { ipcMain } = require('electron');
+const { ipcMain , shell} = require('electron');
 const path = require('path');
 const userData = new Store({name: 'NMM-config'});
 const { parse, stringify } = require('@iarna/toml');
@@ -50,10 +50,8 @@ ipcMain.handle('set-mod-status', async (event, modName, shouldBeEnabled) => {
     }
 });
 
-ipcMain.on('launch-game', async (event) => {
-    const gamePath = await getGamePath();
-    const executablePath = path.join(gamePath, 'DivaMegaMix.exe');
-    spawn(executablePath);
+ipcMain.on('launch-game', (event) => {
+    shell.openExternal(`steam://rungameid/1761390`);
 });
 
 ipcMain.on('open-mod-folder', async (event) => {
