@@ -2,6 +2,8 @@ const { ipcRenderer } = require('electron');
 
 let mods;
 let tbody;
+let activeProfile;
+let currentProfiles;
 
 async function getMods() {
     mods = await ipcRenderer.invoke('get-mods');
@@ -11,6 +13,7 @@ async function getMods() {
     table.innerHTML = `
     <thead>
       <tr>
+        <th data-sort-key="priority" id="header-priority">Priority</th>
         <th data-sort-key="name" id="header-name">Name</th>
         <th data-sort-key="enabled" id="header-enabled">Enabled</th>
         <th data-sort-key="description" id="header-description">Description</th>
@@ -111,13 +114,23 @@ function populateRows(mods) {
 
         const row = document.createElement('tr');
         row.innerHTML = `
+        <td>${mod.priority !== null ? mod.priority : ''}</td>
         <td>${modName.replace(/^"(.*)"$/, '$1')}</td>
         <td><input type="checkbox" ${mod.enabled ? 'checked' : ''}></td>
-        <td>${mod.description.replace(/^"(.*)"$/, '$1')}</td>
-        <td>${mod.author.replace(/^"(.*)"$/, '$1')}</td>
-        <td>${mod.version.replace(/^"(.*)"$/, '$1')}</td>
-        <td>${mod.date.replace(/^"(.*)"$/, '$1')}</td>
-      `;
+        <td>${mod.description ? mod.description.replace(/^"(.*)"$/, '$1') : ''}</td>
+        <td>${mod.author ? mod.author.replace(/^"(.*)"$/, '$1') : ''}</td>
+        <td>${mod.version ? mod.version.replace(/^"(.*)"$/, '$1') : ''}</td>
+        <td>${mod.date ? mod.date.replace(/^"(.*)"$/, '$1') : ''}</td>
+        `;
+
+        row.addEventListener('click', () => {
+            const selectedRows = document.querySelectorAll('tr.selected');
+            selectedRows.forEach((selectedRow) => {
+                selectedRow.classList.remove('selected');
+            });
+            console.log(modName)
+            row.classList.add('selected');
+        });
 
         const checkbox = row.querySelector('input[type="checkbox"]');
         checkbox.addEventListener('click', () => {
@@ -128,6 +141,64 @@ function populateRows(mods) {
     }
 }
 
+// Function to get profiles
+async function getProfiles() {
+    currentProfiles = await ipcRenderer.invoke('get-profiles');
+    const profileSelector = document.getElementById('profile-selector');
+
+    // Populate the dropdown with profile names
+    for (const profileName in currentProfiles) {
+        const option = document.createElement('option');
+        option.value = profileName;
+        option.innerText = profileName;
+        profileSelector.appendChild(option);
+    }
+
+    // Set the active profile and update the mod list
+    profileSelector.addEventListener('change', async () => {
+        activeProfile = profileSelector.value;
+        await ipcRenderer.invoke('set-active-profile', activeProfile);
+        await reloadMods();
+    });
+
+    // Set the initial active profile
+    activeProfile = await ipcRenderer.invoke('get-active-profile');
+    profileSelector.value = activeProfile;
+}
+
+// Function to update mod priority
+async function updateModPriority(increase) {
+    console.log('Updating mod priority');
+    const selectedMod = document.querySelector('tr.selected');
+    if (selectedMod) {
+        const modName = selectedMod.querySelector('td:first-child').innerText;
+        await ipcRenderer.invoke(increase ? 'increase-mod-priority' : 'decrease-mod-priority', modName);
+        await reloadMods();
+    }
+}
+
+// Update the DOMContentLoaded event listener
+window.addEventListener('DOMContentLoaded', async () => {
+    await getProfiles();
+    await getMods();
+
+    // Add event listeners for the buttons
+    const launchGameButton = document.getElementById('launch-game');
+    const reloadModsButton = document.getElementById('reload-mods');
+    const searchInput = document.getElementById('search-input');
+    const openModFolderButton = document.getElementById('open-folder');
+    const increaseModPriorityButton = document.getElementById('increase-mod-priority');
+    const decreaseModPriorityButton = document.getElementById('decrease-mod-priority');
+
+    launchGameButton.addEventListener('click', launchGame);
+    reloadModsButton.addEventListener('click', reloadMods);
+    openModFolderButton.addEventListener('click', openModFolder);
+    searchInput.addEventListener('input', () => {
+        searchMods(mods, searchInput.value);
+    });
+    increaseModPriorityButton.addEventListener('click', () => updateModPriority(true));
+    decreaseModPriorityButton.addEventListener('click', () => updateModPriority(false));
+});
 
 
 // Call the getMods function when the page has loaded
@@ -146,20 +217,3 @@ async function reloadMods() {
     populateRows(mods);
 }
 
-// Call the getMods function when the page has loaded
-window.addEventListener('DOMContentLoaded', () => {
-    getMods();
-
-    // Add event listeners for the buttons
-    const launchGameButton = document.getElementById('launch-game');
-    const reloadModsButton = document.getElementById('reload-mods');
-    const searchInput = document.getElementById('search-input');
-    const openModFolderButton = document.getElementById('open-folder');
-
-    launchGameButton.addEventListener('click', launchGame);
-    reloadModsButton.addEventListener('click', reloadMods);
-    openModFolderButton.addEventListener('click', openModFolder);
-    searchInput.addEventListener('input', () => {
-        searchMods(mods, searchInput.value);
-    });
-});

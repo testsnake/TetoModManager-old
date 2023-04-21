@@ -5,6 +5,22 @@ const { ipcMain } = require('electron');
 const path = require('path');
 const userData = new Store({name: 'NMM-config'});
 
+// Default profile structure
+const defaultProfile = {
+    name: 'Default',
+    enabledMods: {},
+    modOrder: []
+};
+
+// Initialize profiles
+let profiles = userData.get('profiles') || { Default: defaultProfile };
+userData.set('profiles', profiles);
+
+// Set the current profile
+let currentProfileName = userData.get('currentProfile') || 'Default';
+let currentProfile = profiles[currentProfileName];
+
+
 const { spawn } = require('child_process');
 
 
@@ -44,6 +60,112 @@ ipcMain.on('open-mod-folder', async (event) => {
     const modPath = path.join(gamePath, 'mods');
     spawn('explorer', [modPath]);
 });
+
+ipcMain.handle('make-profile', (event, profileName) => {
+    if (!profiles[profileName]) {
+        profiles[profileName] = { ...defaultProfile, name: profileName };
+        userData.set('profiles', profiles);
+    } else {
+        console.error(`Profile ${profileName} already exists`);
+    }
+});
+
+ipcMain.handle('rename-profile', (event, oldProfileName, newProfileName) => {
+    if (profiles[oldProfileName] && !profiles[newProfileName]) {
+        profiles[newProfileName] = { ...profiles[oldProfileName], name: newProfileName };
+        delete profiles[oldProfileName];
+        userData.set('profiles', profiles);
+        if (currentProfileName === oldProfileName) {
+            currentProfileName = newProfileName;
+            userData.set('currentProfile', currentProfileName);
+        }
+    } else {
+        console.error(`Error renaming profile: ${oldProfileName} to ${newProfileName}`);
+    }
+});
+
+ipcMain.handle('delete-profile', (event, profileName) => {
+    if (profiles[profileName] && profileName !== 'Default') {
+        delete profiles[profileName];
+        userData.set('profiles', profiles);
+        if (currentProfileName === profileName) {
+            currentProfileName = 'Default';
+            userData.set('currentProfile', currentProfileName);
+        }
+    } else {
+        console.error(`Cannot delete profile: ${profileName}`);
+    }
+});
+
+ipcMain.handle('switch-profile', async (event, profileName) => {
+    if (profiles[profileName]) {
+        currentProfileName = profileName;
+        userData.set('currentProfile', currentProfileName);
+        currentProfile = profiles[currentProfileName];
+        const gamePath = await getGamePath();
+        await findValidMods(gamePath);
+    } else {
+        console.error(`Profile ${profileName} not found`);
+    }
+});
+
+ipcMain.handle('set-default-profile', (event, profileName) => {
+    if (profiles[profileName]) {
+        userData.set('defaultProfile', profileName);
+    } else {
+        console.error(`Profile ${profileName} not found`);
+    }
+});
+
+ipcMain.handle('increase-mod-priority', (event, modName) => {
+    console.log(`Attempting to increase priority of mod ${modName}`);
+    const modOrder = currentProfile.modOrder;
+    console.log('Current mod order:', modOrder);
+
+    const modIndex = modOrder.indexOf(modName);
+    console.log('Mod index:', modIndex);
+
+    if (modIndex > 0) {
+        // Swap mod positions in the modOrder array
+        [modOrder[modIndex], modOrder[modIndex - 1]] = [modOrder[modIndex - 1], modOrder[modIndex]];
+        profiles[currentProfileName].modOrder = modOrder; // Update the modOrder in the profiles object
+        userData.set('profiles', profiles);
+        console.log(`Mod ${modName} has been moved up in priority`);
+        console.log('Updated mod order:', modOrder);
+    } else {
+        console.error(`Cannot increase priority of mod ${modName}`);
+    }
+});
+
+ipcMain.handle('decrease-mod-priority', (event, modName) => {
+    console.log(`Attempting to decrease priority of mod ${modName}`);
+    const modOrder = currentProfile.modOrder;
+    console.log('Current mod order:', modOrder);
+
+    const modIndex = modOrder.indexOf(modName);
+    console.log('Mod index:', modIndex);
+
+    if (modIndex >= 0 && modIndex < modOrder.length - 1) {
+        // Swap mod positions in the modOrder array
+        [modOrder[modIndex], modOrder[modIndex + 1]] = [modOrder[modIndex + 1], modOrder[modIndex]];
+        profiles[currentProfileName].modOrder = modOrder; // Update the modOrder in the profiles object
+        userData.set('profiles', profiles);
+        console.log(`Mod ${modName} has been moved down in priority`);
+        console.log('Updated mod order:', modOrder);
+    } else {
+        console.error(`Cannot decrease priority of mod ${modName}`);
+    }
+});
+
+
+ipcMain.handle('get-profiles', () => {
+    return profiles;
+});
+
+ipcMain.handle('get-active-profile', () => {
+    return currentProfileName;
+});
+
 
 const createWindow = () => {
     const win = new BrowserWindow({
@@ -165,8 +287,19 @@ async function findValidMods(gamePath) {
         if (!folders.includes(modName)) {
             console.log(`Removing mod: ${modName}`);
             delete currentMods[modName];
+            const modOrderIndex = currentProfile.modOrder.indexOf(modName);
+            if (modOrderIndex !== -1) {
+                currentProfile.modOrder.splice(modOrderIndex, 1); // Remove the mod from the modOrder array
+            }
         }
     }
+
+    const newMods = folders.filter(folder => !currentMods[folder]);
+    const existingMods = folders.filter(folder => currentMods[folder]);
+
+    // Add new mods to the end of the mod order
+    currentProfile.modOrder.push(...newMods);
+    profiles[currentProfileName].modOrder.push(...newMods);
 
     for (const folder of folders) {
         const modFolderPath = path.join(modsFolderPath, folder);
@@ -200,11 +333,36 @@ async function findValidMods(gamePath) {
             console.log(`First time detecting mod: ${folder}`);
         }
 
-        console.log(`Adding mod: ${folder}, path: ${modFolderPath}, first detected: ${firstDetected}, enabled: ${enabled}, date: ${date}, version: ${version}, description: ${description}, author: ${author}`);
-        currentMods[folder] = { path: modFolderPath, firstDetected, enabled, date, version, description, author };
+        const priority = currentMods[folder]?.priority || 0; // Set the priority to 0 by default
+
+        console.log(`Adding mod: ${folder}, path: ${modFolderPath}, first detected: ${firstDetected}, enabled: ${enabled}, date: ${date}, version: ${version}, description: ${description}, author: ${author}, priority: ${priority}`);
+
+        currentMods[folder] = {
+            path: modFolderPath,
+            firstDetected,
+            enabled,
+            date,
+            version,
+            description,
+            author,
+            priority: currentMods[folder]?.priority != null ? currentMods[folder].priority : 0 // Set the priority to 0 by default if it is not already set
+        };
+
+
     }
 
+    // Sort existing mods by priority
+    existingMods.sort((a, b) => currentMods[a].priority - currentMods[b].priority);
+
+    // Reorder mods according to their priority
+    currentProfile.modOrder = [...existingMods, ...newMods].filter((mod, index, array) => array.indexOf(mod) === index);
+
+    profiles[currentProfileName].modOrder = currentProfile.modOrder;
+
     userData.set('game.mods', currentMods);
+    userData.set('profiles', profiles);
+
+    console.log('Finished detecting mods');
 }
 
 
