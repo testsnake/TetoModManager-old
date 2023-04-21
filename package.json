@@ -13,6 +13,8 @@
     "electron": "^24.1.2"
   },
   "dependencies": {
-    "electron-store": "^8.1.0"
+    "@iarna/toml": "^2.2.5",
+    "electron-store": "^8.1.0",
+    "toml": "^3.0.0"
   }
 }

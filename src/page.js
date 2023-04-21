@@ -5,6 +5,32 @@ let tbody;
 let activeProfile;
 let currentProfiles;
 
+// Sort table rows
+function sortRows(key, asc = true, selectedModName = null) {
+    console.log('Sorting by', key, asc);
+    const sortedMods = Object.entries(mods).sort((a, b) => {
+        const aValue = a[1][key];
+        const bValue = b[1][key];
+
+        if (typeof aValue === 'string') {
+            return asc ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+        } else if (typeof aValue === 'boolean') {
+            return aValue === bValue ? 0 : (asc ? (aValue ? -1 : 1) : (aValue ? 1 : -1));
+        } else {
+            return asc ? (aValue - bValue) : (bValue - aValue);
+        }
+    });
+
+    const sortedModsObj = {};
+    for (const [modName, mod] of sortedMods) {
+        sortedModsObj[modName] = mod;
+    }
+
+    populateRows(sortedModsObj, selectedModName);
+
+}
+
+
 async function getMods() {
     mods = await ipcRenderer.invoke('get-mods');
     const modsList = document.querySelector('.modslist');
@@ -13,7 +39,7 @@ async function getMods() {
     table.innerHTML = `
     <thead>
       <tr>
-        <th data-sort-key="priority" id="header-priority">Priority</th>
+        <th data-sort-key="priority" id="header-priority">Order</th>
         <th data-sort-key="name" id="header-name">Name</th>
         <th data-sort-key="enabled" id="header-enabled">Enabled</th>
         <th data-sort-key="description" id="header-description">Description</th>
@@ -32,30 +58,7 @@ async function getMods() {
 
     populateRows(mods);
 
-    // Sort table rows
-    function sortRows(key, asc = true) {
-        console.log('Sorting by', key, asc);
-        const sortedMods = Object.entries(mods).sort((a, b) => {
-            const aValue = a[1][key];
-            const bValue = b[1][key];
 
-            if (typeof aValue === 'string') {
-                return asc ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-            } else if (typeof aValue === 'boolean') {
-                return aValue === bValue ? 0 : (asc ? (aValue ? -1 : 1) : (aValue ? 1 : -1));
-            } else {
-                return asc ? (aValue - bValue) : (bValue - aValue);
-            }
-        });
-
-        const sortedModsObj = {};
-        for (const [modName, mod] of sortedMods) {
-            sortedModsObj[modName] = mod;
-        }
-
-        populateRows(sortedModsObj);
-
-    }
 
 
     // Add sorting event listeners
@@ -66,6 +69,8 @@ async function getMods() {
 
         header.addEventListener('click', () => {
             const sortKey = header.dataset.sortKey;
+            const selectedModElement = document.querySelector('tr.selected > td:nth-child(2)');
+            const selectedModName = selectedModElement ? selectedModElement.innerText : null;
 
             // Check if the same header was clicked again
             if (header.getAttribute('data-sorted') === 'true') {
@@ -76,8 +81,8 @@ async function getMods() {
                 asc = true;
             }
 
-            // Pass the `asc` variable to the `sortRows` function
-            sortRows(sortKey, asc);
+            // Pass the `asc` variable and the `selectedModName` to the `sortRows` function
+            sortRows(sortKey, asc, selectedModName);
 
             // Mark all headers as unsorted
             headers.forEach(h => h.setAttribute('data-sorted', 'false'));
@@ -106,7 +111,7 @@ function searchMods(mods, query) {
     populateRows(filteredMods);
 }
 
-function populateRows(mods) {
+function populateRows(mods, selectedModName = null) {
     tbody.innerHTML = '';
 
     for (const modName in mods) {
@@ -122,6 +127,11 @@ function populateRows(mods) {
         <td>${mod.version ? mod.version.replace(/^"(.*)"$/, '$1') : ''}</td>
         <td>${mod.date ? mod.date.replace(/^"(.*)"$/, '$1') : ''}</td>
         `;
+
+        // Add the 'selected' class if the mod name matches the selectedModName
+        if (modName === selectedModName) {
+            row.classList.add('selected');
+        }
 
         row.addEventListener('click', () => {
             const selectedRows = document.querySelectorAll('tr.selected');
@@ -171,16 +181,18 @@ async function updateModPriority(increase) {
     console.log('Updating mod priority');
     const selectedMod = document.querySelector('tr.selected');
     if (selectedMod) {
-        const modName = selectedMod.querySelector('td:first-child').innerText;
+        const modName = selectedMod.querySelector('td:nth-child(2)').innerText; // Get the mod name from the second cell
         await ipcRenderer.invoke(increase ? 'increase-mod-priority' : 'decrease-mod-priority', modName);
-        await reloadMods();
+        await reloadMods(modName); // Pass the mod name to the reloadMods function
     }
+    ipcRenderer.invoke('update-mod-priorities');
 }
 
 // Update the DOMContentLoaded event listener
 window.addEventListener('DOMContentLoaded', async () => {
     await getProfiles();
     await getMods();
+    sortRows('priority', true);
 
     // Add event listeners for the buttons
     const launchGameButton = document.getElementById('launch-game');
@@ -198,12 +210,15 @@ window.addEventListener('DOMContentLoaded', async () => {
     });
     increaseModPriorityButton.addEventListener('click', () => updateModPriority(true));
     decreaseModPriorityButton.addEventListener('click', () => updateModPriority(false));
+    ipcRenderer.invoke('update-mod-priorities');
+
 });
 
 
 // Call the getMods function when the page has loaded
 // Function to launch the game
-function launchGame() {
+async function launchGame() {
+    await ipcRenderer.invoke('update-mod-priorities');
     ipcRenderer.send('launch-game');
 }
 
@@ -212,8 +227,9 @@ function openModFolder() {
 }
 
 // Function to reload the mods
-async function reloadMods() {
+async function reloadMods(selectedModName = null) {
     mods = await ipcRenderer.invoke('get-mods');
-    populateRows(mods);
+    populateRows(mods, selectedModName); // Pass the selectedModName parameter to the populateRows function
+    sortRows('priority', true, selectedModName);
+    ipcRenderer.invoke('update-mod-priorities');
 }
-

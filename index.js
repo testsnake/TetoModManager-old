@@ -4,6 +4,8 @@ const Store = require('electron-store');
 const { ipcMain } = require('electron');
 const path = require('path');
 const userData = new Store({name: 'NMM-config'});
+const { parse, stringify } = require('@iarna/toml');
+
 
 // Default profile structure
 const defaultProfile = {
@@ -122,7 +124,14 @@ ipcMain.handle('increase-mod-priority', (event, modName) => {
     const modOrder = currentProfile.modOrder;
     console.log('Current mod order:', modOrder);
 
-    const modIndex = modOrder.indexOf(modName);
+    // if modname is an int, then use that as the index
+
+    let modIndex = (typeof modName === 'number' && modName >= 0 && modName < modOrder.length) ? modName : modOrder.indexOf(modName);
+
+    if (modIndex === -1) {
+        modIndex = parseInt(modName) - 1;
+    }
+
     console.log('Mod index:', modIndex);
 
     if (modIndex > 0) {
@@ -142,7 +151,12 @@ ipcMain.handle('decrease-mod-priority', (event, modName) => {
     const modOrder = currentProfile.modOrder;
     console.log('Current mod order:', modOrder);
 
-    const modIndex = modOrder.indexOf(modName);
+    let modIndex = (typeof modName === 'number' && modName >= 0 && modName < modOrder.length) ? modName : modOrder.indexOf(modName);
+
+    if (modIndex === -1) {
+        modIndex = parseInt(modName) - 1;
+    }
+
     console.log('Mod index:', modIndex);
 
     if (modIndex >= 0 && modIndex < modOrder.length - 1) {
@@ -165,6 +179,46 @@ ipcMain.handle('get-profiles', () => {
 ipcMain.handle('get-active-profile', () => {
     return currentProfileName;
 });
+
+ipcMain.handle('get-console-value', async () => {
+    const gamePath = await getGamePath();
+    return readGameConfigValue(gamePath, 'console');
+});
+
+ipcMain.handle('set-console-value', async (event, newValue) => {
+    const gamePath = await getGamePath();
+    setGameConfigValue(gamePath, 'console', newValue);
+});
+
+ipcMain.handle('get-mods-value', async () => {
+    const gamePath = await getGamePath();
+    return readGameConfigValue(gamePath, 'mods');
+});
+
+ipcMain.handle('set-mods-value', async (event, newValue) => {
+    const gamePath = await getGamePath();
+    setGameConfigValue(gamePath, 'mods', newValue);
+});
+
+ipcMain.handle('update-mod-priorities', async () => {
+
+    const gamePath = await getGamePath();
+    console.log(`Updating mod priorities in ${gamePath}`);
+    const configPath = path.join(gamePath, 'config.toml');
+    console.log(`Updating mod priorities in ${configPath}`);
+    const modOrder = currentProfile.modOrder;
+
+    if (fs.existsSync(configPath)) {
+        const config = parse(fs.readFileSync(configPath, 'utf-8'));
+        config.priority = modOrder;
+        fs.writeFileSync(configPath, stringify(config));
+        console.log('Mod priorities have been updated in the global config.toml file.');
+    } else {
+        console.log('Could not find the global config.toml file.');
+    }
+});
+
+
 
 
 const createWindow = () => {
@@ -297,6 +351,12 @@ async function findValidMods(gamePath) {
     const newMods = folders.filter(folder => !currentMods[folder]);
     const existingMods = folders.filter(folder => currentMods[folder]);
 
+    // Get the max priority of existing mods
+    let maxPriority = 0;
+    for (const modName in currentMods) {
+        maxPriority = Math.max(maxPriority, currentMods[modName].priority);
+    }
+
     // Add new mods to the end of the mod order
     currentProfile.modOrder.push(...newMods);
     profiles[currentProfileName].modOrder.push(...newMods);
@@ -333,7 +393,7 @@ async function findValidMods(gamePath) {
             console.log(`First time detecting mod: ${folder}`);
         }
 
-        const priority = currentMods[folder]?.priority || 0; // Set the priority to 0 by default
+        const priority = currentProfile.modOrder.indexOf(folder) + 1;
 
         console.log(`Adding mod: ${folder}, path: ${modFolderPath}, first detected: ${firstDetected}, enabled: ${enabled}, date: ${date}, version: ${version}, description: ${description}, author: ${author}, priority: ${priority}`);
 
@@ -345,7 +405,7 @@ async function findValidMods(gamePath) {
             version,
             description,
             author,
-            priority: currentMods[folder]?.priority != null ? currentMods[folder].priority : 0 // Set the priority to 0 by default if it is not already set
+            priority: priority
         };
 
 
@@ -393,8 +453,29 @@ function setModStatus(modPath, shouldBeEnabled) {
 }
 
 
+async function readGameConfigValue(gamePath, key) {
+    const configPath = path.join(gamePath, 'config.toml');
+    const lines = readConfig(configPath);
+    const line = lines.find(line => line.startsWith(`${key} =`));
+    if (line) {
+        return line.split('=')[1].trim();
+    } else {
+        console.error(`Could not find the ${key} line in ${configPath}`);
+    }
+}
 
-
+async function setGameConfigValue(gamePath, key, newValue) {
+    const configPath = path.join(gamePath, 'config.toml');
+    const lines = readConfig(configPath);
+    const lineIndex = lines.findIndex(line => line.startsWith(`${key} =`));
+    if (lineIndex !== -1) {
+        lines[lineIndex] = `${key} = ${newValue}`;
+        writeConfig(configPath, lines);
+        console.log(`Value of ${key} in ${configPath} has been set to ${newValue}`);
+    } else {
+        console.error(`Could not find the ${key} line in ${configPath}`);
+    }
+}
 
 
 
