@@ -132,6 +132,7 @@ function populateRows(mods, selectedModName = null) {
         if (modName === selectedModName) {
             row.classList.add('selected');
         }
+        row.classList.add('mod-row');
 
         row.addEventListener('click', () => {
             const selectedRows = document.querySelectorAll('tr.selected');
