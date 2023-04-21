@@ -73,7 +73,7 @@ body {
 
 tr.mod-row:hover {
     background-color: rgba(255, 100, 100, 0.1);
-    transition: background-color 0.1s linear;
+    transition: background-color 0.02s linear;
 }
 
 tr.selected {
