@@ -36,13 +36,29 @@ ipcMain.handle('get-mods', async () => {
     return userData.get('game.mods');
 });
 
+// ipcMain.handle('set-mod-status', async (event, modName, shouldBeEnabled) => {
+//     const mods = userData.get('game.mods');
+//     const mod = mods[modName];
+//
+//     if (mod) {
+//         setModStatus(mod.path, shouldBeEnabled);
+//         mod.enabled = shouldBeEnabled;
+//         userData.set('game.mods', mods);
+//         console.log(`Mod ${modName} has been ${shouldBeEnabled ? 'enabled' : 'disabled'}`);
+//     } else {
+//         console.error(`Mod ${modName} not found`);
+//     }
+// });
+
 ipcMain.handle('set-mod-status', async (event, modName, shouldBeEnabled) => {
     const mods = userData.get('game.mods');
     const mod = mods[modName];
-
     if (mod) {
         setModStatus(mod.path, shouldBeEnabled);
-        mod.enabled = shouldBeEnabled;
+        // Update the enabled status in the current profile
+        currentProfile.enabledMods[modName] = shouldBeEnabled;
+        userData.set('profiles', profiles);
+
         userData.set('game.mods', mods);
         console.log(`Mod ${modName} has been ${shouldBeEnabled ? 'enabled' : 'disabled'}`);
     } else {
@@ -97,13 +113,14 @@ ipcMain.handle('delete-profile', (event, profileName) => {
     }
 });
 
-ipcMain.handle('switch-profile', async (event, profileName) => {
+ipcMain.handle('set-active-profile', async (event, profileName) => {
     if (profiles[profileName]) {
         currentProfileName = profileName;
         userData.set('currentProfile', currentProfileName);
         currentProfile = profiles[currentProfileName];
         const gamePath = await getGamePath();
         await findValidMods(gamePath);
+        await updateModStatusesBasedOnProfile(currentProfile);
     } else {
         console.error(`Profile ${profileName} not found`);
     }
@@ -250,19 +267,22 @@ function startup() {
     getGamePath()
         .then((gamePath) => {
             console.log('Game path:', gamePath);
-            findValidMods(gamePath);
+            return findValidMods(gamePath, userData.get('firstRun'));
+        })
+        .then(() => {
+            console.log("Hello! You are on windows!");
+            if (userData.get('firstRun') === undefined || userData.get('game.path') === null) {
+                userData.set('firstRun', true);
+                console.log("This is the first time you have run this app");
+            } else {
+                console.log("This is not the first time you have run this app");
+            }
         })
         .catch((error) => {
             console.error('Error while getting the game path:', error);
         });
-    console.log("Hello! You are on windows!");
-    if (userData.get('firstRun') === undefined || userData.get('game.path') === null) {
-        userData.set('firstRun', true);
-        console.log("This is the first time you have run this app");
-    } else {
-        console.log("This is not the first time you have run this app");
-    }
 }
+
 
 async function getGamePathFromUser() {
     // TODO: Implement this function to get the game path from the user, e.g., through a dialog
@@ -391,14 +411,17 @@ async function findValidMods(gamePath) {
             console.log(`First time detecting mod: ${folder}`);
         }
 
+        const profileEnabledStatus = currentProfile.enabledMods.hasOwnProperty(folder) ? currentProfile.enabledMods[folder] : enabled;
+        console.log(`Mod: ${folder}, enabled: ${enabled}, profile enabled: ${profileEnabledStatus}, previous enabled: ${currentMods[folder] && currentMods[folder].enabled}`);
+
         const priority = currentProfile.modOrder.indexOf(folder) + 1;
 
-        console.log(`Adding mod: ${folder}, path: ${modFolderPath}, first detected: ${firstDetected}, enabled: ${enabled}, date: ${date}, version: ${version}, description: ${description}, author: ${author}, priority: ${priority}`);
+        console.log(`Adding mod: ${folder}, path: ${modFolderPath}, first detected: ${firstDetected}, enabled: ${profileEnabledStatus}, date: ${date}, version: ${version}, description: ${description}, author: ${author}, priority: ${priority}`);
 
         currentMods[folder] = {
             path: modFolderPath,
             firstDetected,
-            enabled,
+            enabled: profileEnabledStatus,
             date,
             version,
             description,
@@ -473,6 +496,16 @@ async function setGameConfigValue(gamePath, key, newValue) {
     } else {
         console.error(`Could not find the ${key} line in ${configPath}`);
     }
+}
+
+async function updateModStatusesBasedOnProfile(profile) {
+    const mods = userData.get('game.mods');
+    for (const modName in mods) {
+        const shouldBeEnabled = profile.enabledMods[modName] === true;
+        await setModStatus(mods[modName].path, shouldBeEnabled);
+        mods[modName].enabled = shouldBeEnabled;
+    }
+    userData.set('game.mods', mods);
 }
 
 
