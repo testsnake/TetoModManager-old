@@ -233,6 +233,10 @@ ipcMain.handle('update-mod-priorities', async () => {
     }
 });
 
+//TODO replace with gamebanana integration
+ipcMain.handle('open-gamebanana', () => {
+    shell.openExternal('https://gamebanana.com/games/16522');
+});
 
 
 

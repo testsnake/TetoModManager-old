@@ -202,6 +202,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     // Add event listeners for the buttons
     const launchGameButton = document.getElementById('launch-game');
+    const openSettingsButton = document.getElementById('open-settings');
+    const openGamebananaButton = document.getElementById('open-gamebanana');
     const reloadModsButton = document.getElementById('reload-mods');
     const searchInput = document.getElementById('search-input');
     const openModFolderButton = document.getElementById('open-folder');
@@ -246,6 +248,17 @@ window.addEventListener('DOMContentLoaded', async () => {
         } else {
             popupAlert('Please enter a name for the profile');
         }
+    });
+
+    openSettingsButton.addEventListener('click', () => {
+        // TODO - Add settings
+       popupAlert('Settings coming soon!');
+    });
+
+    openGamebananaButton.addEventListener('click', async () => {
+        // TODO - Add gamebanana integration
+        await popupAlert('Gamebanana integration coming soon!')
+        ipcRenderer.invoke('open-gamebanana');
     });
 
     ipcRenderer.invoke('update-mod-priorities');
