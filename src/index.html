@@ -24,6 +24,10 @@
                 <button id="reload-mods">Reload mods</button>
                 <!-- In the div with id="topbar" -->
                 <select id="profile-selector"></select>
+                <button id="create-profile">Create profile</button>
+                <button id="delete-profile">Delete profile</button>
+                <button id="rename-profile">Rename profile</button>
+
                 <button id="increase-mod-priority">Increase Priority</button>
                 <button id="decrease-mod-priority">Decrease Priority</button>
 
@@ -32,6 +36,13 @@
             <div class="content">
                 <div class="modslist"></div>
                 <div class="modinfo">Mod Info</div>
+            </div>
+
+            <div id="dialog-overlay"></div>
+            <div id="dialog-box">
+                <div id="dialog-message"></div>
+                <input id="dialog-input" type="text" hidden>
+                <div id="dialog-buttons"></div>
             </div>
 
 

@@ -77,7 +77,7 @@ ipcMain.on('open-mod-folder', async (event) => {
     spawn('explorer', [modPath]);
 });
 
-ipcMain.handle('make-profile', (event, profileName) => {
+ipcMain.handle('create-profile', (event, profileName) => {
     if (!profiles[profileName]) {
         profiles[profileName] = { ...defaultProfile, name: profileName };
         userData.set('profiles', profiles);
@@ -507,6 +507,10 @@ async function updateModStatusesBasedOnProfile(profile) {
     }
     userData.set('game.mods', mods);
 }
+
+
+
+
 
 
 

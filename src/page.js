@@ -157,6 +157,11 @@ async function getProfiles() {
     currentProfiles = await ipcRenderer.invoke('get-profiles');
     const profileSelector = document.getElementById('profile-selector');
 
+    // remove any existing options
+    while (profileSelector.firstChild) {
+        profileSelector.removeChild(profileSelector.firstChild);
+    }
+
     // Populate the dropdown with profile names
     for (const profileName in currentProfiles) {
         const option = document.createElement('option');
@@ -202,6 +207,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     const openModFolderButton = document.getElementById('open-folder');
     const increaseModPriorityButton = document.getElementById('increase-mod-priority');
     const decreaseModPriorityButton = document.getElementById('decrease-mod-priority');
+    const createProfileButton = document.getElementById('create-profile');
+    const deleteProfileButton = document.getElementById('delete-profile');
+    const renameProfileButton = document.getElementById('rename-profile');
 
     launchGameButton.addEventListener('click', launchGame);
     reloadModsButton.addEventListener('click', reloadMods);
@@ -211,6 +219,35 @@ window.addEventListener('DOMContentLoaded', async () => {
     });
     increaseModPriorityButton.addEventListener('click', () => updateModPriority(true));
     decreaseModPriorityButton.addEventListener('click', () => updateModPriority(false));
+    createProfileButton.addEventListener('click', async () => {
+        const newProfileName = await popupPrompt('Enter a name for the new profile');
+        if (newProfileName && newProfileName.length > 0) {
+            ipcRenderer.invoke('create-profile', newProfileName).then(async () => {
+                await getProfiles();
+            });
+        } else {
+            popupAlert('Please enter a name for the profile');
+        }
+    });
+    deleteProfileButton.addEventListener('click', async () => {
+        if (await popupConfirm('Are you sure you want to delete this profile?')) {
+            ipcRenderer.invoke('delete-profile', activeProfile).then(async () => {
+                await getProfiles();
+            });
+        }
+
+    });
+    renameProfileButton.addEventListener('click', async () => {
+        const newProfileName = await popupPrompt('Enter a new name for the profile', activeProfile);
+        if (newProfileName && newProfileName.length > 0) {
+            ipcRenderer.invoke('rename-profile', activeProfile,).then(async () => {
+                await getProfiles();
+            });
+        } else {
+            popupAlert('Please enter a name for the profile');
+        }
+    });
+
     ipcRenderer.invoke('update-mod-priorities');
 
 });
@@ -233,4 +270,69 @@ async function reloadMods(selectedModName = null) {
     populateRows(mods, selectedModName); // Pass the selectedModName parameter to the populateRows function
     sortRows('priority', true, selectedModName);
     ipcRenderer.invoke('update-mod-priorities');
+}
+
+
+// Web layout functions
+
+function showDialog({ message, input = false, buttons }) {
+    const dialogOverlay = document.getElementById("dialog-overlay");
+    const dialogBox = document.getElementById("dialog-box");
+    const dialogMessage = document.getElementById("dialog-message");
+    const dialogInput = document.getElementById("dialog-input");
+    const dialogButtons = document.getElementById("dialog-buttons");
+
+    dialogMessage.textContent = message;
+    dialogInput.hidden = !input;
+    dialogInput.value = "";
+    dialogButtons.innerHTML = "";
+
+    buttons.forEach(({ text, handler }) => {
+        const button = document.createElement("button");
+        button.textContent = text;
+        button.onclick = () => {
+            handler();
+            dialogOverlay.style.display = "none";
+            dialogBox.style.display = "none";
+        };
+        dialogButtons.appendChild(button);
+    });
+
+    dialogOverlay.style.display = "block";
+    dialogBox.style.display = "block";
+}
+
+function popupAlert(message) {
+    showDialog({
+        message,
+        buttons: [{ text: "OK", handler: () => {} }],
+    });
+}
+
+function popupConfirm(message) {
+    return new Promise((resolve) => {
+        showDialog({
+            message,
+            buttons: [
+                { text: "Cancel", handler: () => resolve(false) },
+                { text: "OK", handler: () => resolve(true) },
+            ],
+        });
+    });
+}
+
+function popupPrompt(message) {
+    return new Promise((resolve) => {
+        showDialog({
+            message,
+            input: true,
+            buttons: [
+                { text: "Cancel", handler: () => resolve("") },
+                { text: "OK", handler: () => {
+                        const dialogInput = document.getElementById("dialog-input");
+                        resolve(dialogInput.value);
+                    }},
+            ],
+        });
+    });
 }
