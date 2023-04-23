@@ -7,6 +7,7 @@
     "start": "electron .",
     "dev": "cross-env NODE_ENV=development electron .",
     "test": "echo \"Error: no test specified\" && exit 1",
+    "build:main": "electron-builder --linux --windows",
     "build:win": "electron-builder --windows",
     "build:linux": "electron-builder --linux",
     "build:mac": "electron-builder --mac"

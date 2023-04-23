@@ -62,9 +62,6 @@ typings/
 # Production build folder
 dist/
 
-# Electron-builder build folder
-build/
-
 # macOS specific files
 .DS_Store
 .AppleDouble
