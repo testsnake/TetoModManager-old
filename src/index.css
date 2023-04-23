@@ -21,6 +21,19 @@
     --dialog-button-bg-color: #007bff;
     --dialog-button-hover-bg-color: #0056b3;
     --dialog-box-width: 300px;
+    --button-primary-bg-color: #007bff;
+    --button-primary-hover-bg-color: #0056b3;
+    --button-primary-text-color: #fff;
+    --button-secondary-bg-color: #22252f;
+    --button-secondary-hover-bg-color: #3a3c52;
+    --button-secondary-text-color: #fff;
+    --button-danger-bg-color: #dc3545;
+    --button-danger-hover-bg-color: #bd2130;
+    --button-danger-text-color: #fff;
+    --button-warning-bg-color: #ffc107;
+    --button-warning-hover-bg-color: #d39e00;
+    --button-warning-text-color: #212529;
+
     --link-color: #a4c0ff;
     --mod-info-bar-width: 300px;
 }
@@ -124,6 +137,61 @@ body {
     min-height: var(--topbar-height);
     min-width: 100vw;
 }
+
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #f9f9f9;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+    z-index: 1;
+}
+
+.dropdown-content button {
+    color: black;
+    padding: 12px 16px;
+    text-decoration: none;
+    display: block;
+    text-align: left;
+    border: none;
+    background: none;
+    width: 100%;
+    cursor: pointer;
+}
+
+.dropdown-content button:hover {
+    background-color: #f1f1f1;
+}
+
+.dropdown:hover .dropdown-content {
+    display: block;
+}
+
+.topbar-button {
+    /*background-color: inherit;*/
+    /*border: none;*/
+    cursor: pointer;
+    height: 100%;
+}
+
+.topbar-button {
+    background-color: var(--button-secondary-bg-color);
+    color: var(--button-secondary-text-color);
+    border: none;
+    cursor: pointer;
+    height: 100%;
+    transition-duration: 0.1s;
+}
+
+.topbar-button:hover {
+    background-color: var(--button-secondary-hover-bg-color);
+}
+
 
 #bottombar {
     display: flex;

@@ -17,23 +17,42 @@
 <!--            Chromium <span id="chrome-version"></span>,-->
 <!--            and Electron <span id="electron-version"></span>.-->
             <div id="topbar">
-                <button id="open-folder">Mods Folder</button>
-                <button id="open-settings">Settings</button>
-                <button id="open-gamebanana">GameBanana</button>
-                <button id="launch-game">Play</button>
-                <button id="reload-mods">Reload</button>
-                <!-- In the div with id="topbar" -->
+                <button class="topbar-button" id="open-folder">Mods Folder</button>
+                <div class="dropdown">
+                    <button class="topbar-button dropbtn" id="install-menu">Install▾</button>
+                    <div class="dropdown-content">
+                        <button class="topbar-button topbar-button-dropdown" id="open-gamebanana">GameBanana</button>
+                        <button class="topbar-button topbar-button-dropdown" id="install-archive">Archive (Zip)</button>
+                        <button class="topbar-button topbar-button-dropdown" id="install-github">GitHub</button>
+                    </div>
+                </div>
+                <div class="dropdown">
+                    <button class="topbar-button dropbtn" id="settings-menu">Settings▾</button>
+                    <div class="dropdown-content">
+                        <button class="topbar-button topbar-button-dropdown" id="dml-settings">DML</button>
+                        <button class="topbar-button topbar-button-dropdown" id="tmm-settings">TMM</button>
+                        <button class="topbar-button topbar-button-dropdown" id="controller-settings">Controller</button>
+                        <button class="topbar-button topbar-button-dropdown" id="diva-settings">DIVA</button>
+                        <button class="topbar-button topbar-button-dropdown" id="open-dev-console">Dev-Console</button>
+                    </div>
+                </div>
+                <button class="topbar-button" id="launch-game">Play</button>
+                <button class="topbar-button" id="reload-mods">Reload</button>
                 <select id="profile-selector"></select>
-                <button id="create-profile">New Profile</button>
-                <button id="delete-profile">Delete</button>
-                <button id="rename-profile">Rename</button>
-                <button id="increase-mod-priority">Increase Priority</button>
-                <button id="decrease-mod-priority">Decrease Priority</button>
+                <div class="dropdown">
+                    <button class="topbar-button dropbtn" id="profiles-menu">Profiles▾</button>
+                    <div class="dropdown-content">
+                        <button class="topbar-button topbar-button-dropdown" id="create-profile">New Profile</button>
+                        <button class="topbar-button topbar-button-dropdown" id="rename-profile">Rename Profile</button>
+                        <button class="topbar-button topbar-button-dropdown" id="delete-profile">Delete Profile</button>
+                    </div>
+                </div>
 
-
-
+                <button class="topbar-button" id="increase-mod-priority">Increase Priority</button>
+                <button class="topbar-button" id="decrease-mod-priority">Decrease Priority</button>
                 <input type="text" id="search-input" placeholder="Search mods">
             </div>
+
             <div class="content">
                 <div class="modslist scrollable"></div>
                 <div id="mod-info-panel" class="scrollable">

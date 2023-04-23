@@ -421,8 +421,10 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     // Add event listeners for the buttons
     const launchGameButton = document.getElementById('launch-game');
-    const openSettingsButton = document.getElementById('open-settings');
+    const openSettingsButton = document.getElementById('tmm-settings');
     const openGamebananaButton = document.getElementById('open-gamebanana');
+    const installArchiveButton = document.getElementById('install-archive');
+    const installGithubButton = document.getElementById('install-github');
     const reloadModsButton = document.getElementById('reload-mods');
     const searchInput = document.getElementById('search-input');
     const openModFolderButton = document.getElementById('open-folder');
@@ -431,6 +433,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     const createProfileButton = document.getElementById('create-profile');
     const deleteProfileButton = document.getElementById('delete-profile');
     const renameProfileButton = document.getElementById('rename-profile');
+    const dmlSettingsButton = document.getElementById('dml-settings');
+    const controllerSettingsButton = document.getElementById('controller-settings');
+    const divaButton = document.getElementById('diva-settings');
+    const openDevConsoleButton = document.getElementById('open-dev-console');
+
 
 
 
@@ -481,6 +488,41 @@ window.addEventListener('DOMContentLoaded', async () => {
         await popupAlert('Gamebanana integration coming soon!')
         ipcRenderer.invoke('open-gamebanana');
     });
+
+    installArchiveButton.addEventListener('click', async () => {
+        // TODO - Add archive installation
+        await popupAlert('Archive installation coming soon!')
+    });
+
+    installGithubButton.addEventListener('click', async () => {
+        // TODO - Add github installation
+        await popupAlert('Github installation coming soon!')
+    });
+
+    dmlSettingsButton.addEventListener('click', async () => {
+        // TODO - Add dml settings
+        await popupAlert('DML settings coming soon!')
+    });
+
+    controllerSettingsButton.addEventListener('click', async () => {
+        // TODO - Add controller settings
+        await popupAlert('Controller settings coming soon!')
+    });
+
+    divaButton.addEventListener('click', async () => {
+        // TODO - Add diva settings
+        await popupAlert('DIVA settings coming soon!')
+    });
+
+    openDevConsoleButton.addEventListener('click', async () => {
+       ipcRenderer.invoke('open-dev-console');
+    });
+
+
+
+
+
+
 
     ipcRenderer.invoke('update-mod-priorities');
     requestAnimationFrame(handleGamepadInput);

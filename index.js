@@ -63,7 +63,14 @@ ipcMain.handle('set-mod-status', async (event, modName, shouldBeEnabled) => {
     }
 });
 
+ipcMain.handle('open-dev-console', (event) => {
 
+    if (!devMode) {
+        devMode = true;
+        consoleM('Opening dev console...')
+        win.webContents.openDevTools();
+    }
+});
 
 ipcMain.on('launch-game', (event) => {
     shell.openExternal(`steam://rungameid/1761390`);
@@ -350,6 +357,21 @@ async function getGamePathFromUser() {
 
 async function getGamePath() {
     try {
+        let pathGame = userData.get('steamGame.1761390.installDir');
+        let pathGame2 = path.join(pathGame, 'DivaMegaMix.exe');
+
+        const isValid = await fs.promises.access(pathGame2)
+            .then(() => true)
+            .catch(() => false);
+
+
+        if (isValid) {
+            consoleM(`Game path ${pathGame} is valid`)
+            return pathGame;
+        } else {
+            consoleM(`Game path ${pathGame} is invalid`);
+        }
+
         const appId = 1761390;
         consoleM(`App ID: ${appId}`);
         // Set Steam installation paths for different platforms
