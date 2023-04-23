@@ -1,13 +1,24 @@
-const { app, BrowserWindow } = require('electron')
+// Built-in modules
 const fs = require('fs');
-const Store = require('electron-store');
-const crypto = require("crypto");
-const { ipcMain , shell} = require('electron');
 const path = require('path');
-const userData = new Store({name: 'TMM-config'});
+const crypto = require('crypto');
+const { spawn } = require('child_process');
+
+// Electron modules
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
+
+// External packages
+const Store = require('electron-store');
 const { parse, stringify } = require('@iarna/toml');
 const { parse: parseDate, isValid } = require('date-fns');
+const { extractFull } = require('node-7z');
+const sevenBin = require('7zip-bin');
+const disk = require('diskusage');
 
+// Initialize instances
+const userData = new Store({ name: 'TMM-config' });
+
+// Global variables
 let gameVersion;
 let win;
 let devMode;
@@ -26,8 +37,8 @@ userData.set('profiles', profiles);
 // Set the current profile
 let currentProfileName = userData.get('currentProfile') || 'Default';
 let currentProfile = profiles[currentProfileName];
-const { spawn } = require('child_process');
 
+//
 ipcMain.handle('get-mods', async () => {
     const gamePath = await getGamePath();
     consoleM(`Scanning ${gamePath} for mods...`);
@@ -727,6 +738,82 @@ function consoleM(message) {
             win.webContents.send('debug-message', `${message}`);
         }
     }
+}
+
+
+async function unzipFile(file, destination) {
+    try {
+        // Check if the file exists
+        if (!fs.existsSync(file)) {
+            throw new Error('File not found');
+        }
+
+        // Get the archive information
+        const archiveInfo = await extractFull(file, destination, {
+            $bin: sevenBin.path7za,
+            $progress: true,
+            list: true,
+        });
+
+        const estimatedSize = archiveInfo.totalSize;
+
+        // Check if there is enough space on the disk
+        const diskSpace = await disk.check(path.parse(destination).root);
+        if (diskSpace.available < estimatedSize) {
+            throw new Error('Not enough disk space');
+        }
+
+        // Confirm unzip
+        const confirm = await confirmUnZip(estimatedSize);
+        if (!confirm) {
+            return { complete: false, path: file, error: 'User did not confirm unzip' };
+        }
+
+        let password = '';
+        while (true) {
+            try {
+                const extractor = extractFull(file, destination, {
+                    $bin: sevenBin.path7za,
+                    $progress: true,
+                    password: password,
+                });
+
+                // Send percentage done if possible
+                extractor.on('progress', (progress) => {
+                    sendPercentage(Math.round(progress.percent));
+                });
+
+                await extractor;
+
+                // Delete the original zip file and return the result
+                fs.unlinkSync(file);
+                return { complete: true, path: destination, filesize: estimatedSize };
+            } catch (error) {
+                if (error.message.includes('Encrypted file')) {
+                    password = await getPassword();
+                    if (!password) {
+                        return { complete: false, path: file, error: 'No password provided' };
+                    }
+                } else {
+                    throw error;
+                }
+            }
+        }
+    } catch (error) {
+        return { complete: false, path: file, error: error.message };
+    }
+}
+
+async function confirmUnZip(estimatedSize) {
+    // Your implementation of confirmUnZip
+}
+
+async function getPassword() {
+    // Your implementation of getPassword
+}
+
+function sendPercentage(value) {
+    // Your implementation of sendPercentage
 }
 
 app.on('web-contents-created', (event, contents) => {
