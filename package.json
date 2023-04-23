@@ -1,6 +1,6 @@
 {
   "name": "tetomodmanager",
-  "version": "0.0.1",
+  "version": "0.0.2-dev",
   "description": "Mod Manager for Mega Mix+",
   "main": "index.js",
   "scripts": {
@@ -36,10 +36,12 @@
       "target": "portable"
     },
     "linux": {
-      "target": "AppImage"
+      "target": "AppImage",
+      "category": "Utility"
     },
     "mac": {
-      "target": "dmg"
+      "target": "dmg",
+      "category": "public.app-category.utilities"
     }
   }
 }
