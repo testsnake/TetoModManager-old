@@ -29,6 +29,20 @@ function sortRows(key, asc = true, selectedModName = null) {
 
     populateRows(sortedModsObj, selectedModName);
 
+    populateMetaData();
+
+}
+
+async function populateMetaData() {
+    const mDataGameVersion = document.getElementById('game-version');
+    const mDataGamePath = document.getElementById('game-path');
+    const mDataModCount = document.getElementById('mod-count');
+    const mDataDMLVersion = document.getElementById('mod-loader-version');
+    const gameMetadata = await ipcRenderer.invoke('get-game-metadata');
+    mDataGameVersion.innerText = `MM+: ${gameMetadata.gameVersion}`;
+    //mDataGamePath.innerText = gameMetadata.gamePath;
+    mDataModCount.innerText = `Mods: ${gameMetadata.modCount}`;
+    mDataDMLVersion.innerText = `DML: ${gameMetadata.dmlVersion}`;
 }
 
 
@@ -257,6 +271,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     const deleteProfileButton = document.getElementById('delete-profile');
     const renameProfileButton = document.getElementById('rename-profile');
 
+
+
     launchGameButton.addEventListener('click', launchGame);
     reloadModsButton.addEventListener('click', reloadMods);
     openModFolderButton.addEventListener('click', openModFolder);
@@ -307,6 +323,13 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     ipcRenderer.invoke('update-mod-priorities');
 
+
+
+
+
+
+
+
 });
 
 
@@ -327,6 +350,8 @@ async function reloadMods(selectedModName = null) {
     populateRows(mods, selectedModName); // Pass the selectedModName parameter to the populateRows function
     sortRows('priority', true, selectedModName);
     ipcRenderer.invoke('update-mod-priorities');
+
+
 }
 
 ipcRenderer.on('get-path-from-user', async () => {

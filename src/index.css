@@ -154,7 +154,11 @@ tr.selected:hover {
     transition: background-color 0.1s linear;
 }
 
-
+.info-text {
+    margin: 2px 0 0 5px;
+    font-size: 14px;
+    color: #ccc;
+}
 
 #dialog-overlay {
     display: none;

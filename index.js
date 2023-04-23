@@ -7,7 +7,7 @@ const path = require('path');
 const userData = new Store({name: 'TMM-config'});
 const { parse, stringify } = require('@iarna/toml');
 const { parse: parseDate, isValid } = require('date-fns');
-
+let gameVersion;
 let win;
 
 // Default profile structure
@@ -243,13 +243,17 @@ ipcMain.handle('open-gamebanana', () => {
 });
 
 ipcMain.handle('get-game-metadata', async () => {
-    const gameVersion = await getGameVersion()
-    const gamePath = await getGamePath()
+    if (gameVersion === undefined) {
+        gameVersion = await getGameVersion()
+    }
+    // const gamePath = await getGamePath()
+    const modCount = Object.keys(userData.get('game.mods')).length;
     const modloaderVersion = await getModLoaderVersion();
     return {
-        gameVersion,
-        gamePath,
-        modloaderVersion
+        "gameVersion": gameVersion,
+        // "gamePath": gamePath,
+        "modCount": modCount,
+        "dmlVersion": modloaderVersion
     }
 });
 
@@ -631,7 +635,7 @@ async function updateModStatusesBasedOnProfile(profile) {
 
 async function getGameVersion() {
     const gameDirPath = await getGamePath();
-    const gamePath = path.join(gameDirPath.toString(), "DiveMegaMix.exe");
+    const gamePath = path.join(gameDirPath.toString(), "DivaMegaMix.exe");
     return new Promise((resolve, reject) => {
         const hash = crypto.createHash("md5");
         const stream = fs.createReadStream(gamePath);
@@ -666,8 +670,8 @@ async function getGameVersion() {
 
 async function getModLoaderVersion() {
     const gameDirPath = await getGamePath();
-    const modLoaderPath = path.join(gameDirPath.toString(), "config.toml");
-    const configData = await fs.readFile(modLoaderPath, "utf-8");
+    const modLoaderPath = path.join(gameDirPath, "config.toml");
+    const configData = await fs.promises.readFile(modLoaderPath, "utf-8");
     const config = parse(configData);
     return config.version;
 }
