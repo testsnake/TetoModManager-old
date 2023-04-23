@@ -716,6 +716,23 @@ function consoleM(message) {
     }
 }
 
+app.on('web-contents-created', (event, contents) => {
+    contents.on('will-navigate', (event, navigationUrl) => {
+        // Prevent the default navigation behavior
+        event.preventDefault();
+
+        // Open external links in the user's default web browser
+        shell.openExternal(navigationUrl);
+    });
+
+    contents.on('new-window', (event, navigationUrl) => {
+        // Prevent the default new-window behavior
+        event.preventDefault();
+
+        // Open external links in the user's default web browser
+        shell.openExternal(navigationUrl);
+    });
+});
 
 
 app.whenReady().then(() => {
