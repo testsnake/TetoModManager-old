@@ -28,12 +28,6 @@ let currentProfileName = userData.get('currentProfile') || 'Default';
 let currentProfile = profiles[currentProfileName];
 const { spawn } = require('child_process');
 
-
-
-
-
-
-
 ipcMain.handle('get-mods', async () => {
     const gamePath = await getGamePath();
     consoleM(`Scanning ${gamePath} for mods...`);
@@ -57,6 +51,8 @@ ipcMain.handle('set-mod-status', async (event, modName, shouldBeEnabled) => {
         console.error(`Mod ${modName} not found`);
     }
 });
+
+
 
 ipcMain.on('launch-game', (event) => {
     shell.openExternal(`steam://rungameid/1761390`);
@@ -217,6 +213,12 @@ ipcMain.handle('set-console-value', async (event, newValue) => {
 ipcMain.handle('get-mods-value', async () => {
     const gamePath = await getGamePath();
     return readGameConfigValue(gamePath, 'mods');
+});
+
+ipcMain.handle('get-mod-value', async (event, modName) => {
+    const modData = userData.get(`game.mods.${modName}`);
+    return modData;
+
 });
 
 ipcMain.handle('set-mods-value', async (event, newValue) => {
@@ -530,11 +532,14 @@ async function findValidMods(gamePath) {
         }
 
         const profileEnabledStatus = currentProfile.enabledMods.hasOwnProperty(folder) ? currentProfile.enabledMods[folder] : enabled;
-        consoleM(`Mod: ${folder}, enabled: ${enabled}, profile enabled: ${profileEnabledStatus}, previous enabled: ${currentMods[folder] && currentMods[folder].enabled}`);
+        consoleM(`Mod: ${folder}, enabled: ${enabled}, profile enabled: ${profileEnabledStatus}, 
+        previous enabled: ${currentMods[folder] && currentMods[folder].enabled}`);
 
         const priority = currentProfile.modOrder.indexOf(folder) + 1;
 
-        consoleM(`Adding mod: ${folder}, path: ${modFolderPath}, first detected: ${firstDetected}, enabled: ${profileEnabledStatus}, date: ${date}, version: ${version}, description: ${description}, author: ${author}, priority: ${priority}`);
+        consoleM(`Adding mod: ${folder}, path: ${modFolderPath}, first detected: ${firstDetected}, 
+        enabled: ${profileEnabledStatus}, date: ${date}, version: ${version}, description: ${description},
+        author: ${author}, priority: ${priority}`);
 
         if (metaData.source || metaData.updates) {
             isUpdatable = true;
@@ -573,7 +578,8 @@ async function findValidMods(gamePath) {
     existingMods.sort((a, b) => currentMods[a].priority - currentMods[b].priority);
 
     // Reorder mods according to their priority
-    currentProfile.modOrder = [...existingMods, ...newMods].filter((mod, index, array) => array.indexOf(mod) === index);
+    currentProfile.modOrder = [...existingMods, ...newMods]
+        .filter((mod, index, array) => array.indexOf(mod) === index);
 
     profiles[currentProfileName].modOrder = currentProfile.modOrder;
 
