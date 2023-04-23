@@ -1,0 +1,232 @@
+body {
+    color: white;
+    font-family: Comfortaa, sans-serif;
+    /* Prevent the body from scrolling */
+    overflow: hidden;
+    /* Set the body height to 100% of the viewport height */
+    height: 100vh;
+    /* Set the body width to 100% of the viewport width */
+    width: 100vw;
+    /* Set the body margin to 0 to remove any default margin */
+    margin: 0;
+
+}
+
+.scrollable {
+    overflow: scroll;
+    height: 100%; /* define your custom height */
+}
+
+/* Style the scrollbar */
+.scrollable::-webkit-scrollbar {
+    width: 10px;
+}
+
+.scrollable::-webkit-scrollbar-corner {
+    background: rgba(0, 0, 0, 0);
+}
+
+.scrollable::-webkit-scrollbar-thumb {
+    background-color: #99a;
+    border-radius: 8px;
+    border: 4px solid rgba(0, 0, 0, 0);
+    background-clip: content-box;
+    min-width: 32px;
+    min-height: 32px;
+
+    /* Add a transition for easing-out effect */
+    transition: all 0.3s ease-out;
+}
+
+.scrollable::-webkit-scrollbar-track {
+    background-color: rgba(0, 0, 0, 0);
+}
+
+/* Style the scrollbar on hover */
+.scrollable::-webkit-scrollbar-thumb:hover {
+    background-color: #ccc;
+    border-radius: 0;
+    transition: all 0.3s ease-out;
+}
+
+
+
+
+#page {
+    margin-top: 32px;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 32px);
+}
+
+#titlebar {
+    display: flex;
+    background-color: #2f3241;
+    -webkit-user-select: none;
+    -webkit-app-region: drag;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 32px;
+    z-index: 102;
+}
+
+.titlebar-text {
+    color: #FFFFFF;
+    position: absolute;
+    top: -7px;
+    left: 10px;
+}
+
+.content {
+    display: flex;
+    flex-grow: 1;
+    max-height: calc(100vh - 82px);
+}
+
+.modslist {
+    /* Set the height and width of the div */
+    /*height: calc(100vh - 50px);*/
+    width: auto;
+    flex-grow: 1;
+
+    -webkit-user-select: none;
+
+
+    /* Add a border to visually separate the div from the rest of the page */
+    border: 1px solid #000;
+
+    /* Set overflow-y to 'scroll' to enable vertical scrolling */
+    overflow-y: scroll;
+
+    /* Optional: Set overflow-x to 'hidden' to prevent horizontal scrolling if content exceeds the width */
+    overflow-x: hidden;
+}
+
+#mod-info-panel {
+    height: 100%;
+    flex-grow: 1;
+    width: 300px;
+    min-width: 300px;
+    max-width: 300px;
+    overflow-y: auto;
+}
+
+
+#topbar {
+    display: flex;
+    height: 25px;
+    min-height: 25px;
+    min-width: 100vw;
+}
+
+#bottombar {
+    display: flex;
+    height: 25px;
+    min-height: 25px;
+    min-width: 100vw;
+}
+
+.content {
+    display: flex;
+    flex-grow: 1;
+}
+
+tr.mod-row:hover {
+    background-color: rgba(255, 100, 100, 0.1);
+    transition: background-color 0.02s linear;
+}
+
+tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+tr.selected {
+    font-weight: bold;
+    background-color: rgba(255, 100, 100, 0.2);
+    transition: background-color 0.1s linear;
+}
+
+tr.selected:hover {
+    font-weight: bold;
+    background-color: rgba(255, 100, 100, 0.25);
+    transition: background-color 0.1s linear;
+}
+
+.info-text {
+    margin: 2px 0 0 5px;
+    font-size: 14px;
+    color: #ccc;
+}
+
+#dialog-overlay {
+    display: none;
+    position: fixed;
+    top: 32px;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 100;
+}
+
+#dialog-box {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 300px;
+    background-color: #2f3241;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    padding: 20px;
+    z-index: 101;
+}
+
+#dialog-message {
+    margin-bottom: 20px;
+}
+
+#dialog-input {
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+#dialog-buttons {
+    display: flex;
+    justify-content: flex-end;
+}
+
+#dialog-buttons button {
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    cursor: pointer;
+}
+
+#dialog-buttons button:hover {
+    background-color: #0056b3;
+}
+
+.mod-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.mod-image {
+    width: 100%;
+    object-fit: contain;
+}
+
+.icon {
+    filter: invert(100%) brightness(100%);
+    height: 1em;
+}
+a {
+    color: #a4c0ff;
+}
+
+
+
