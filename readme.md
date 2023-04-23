@@ -24,6 +24,9 @@ TMM is currently in alpha, and is not ready for use. It is not recommended to us
 - [ ] Compatibility Check for Mods
 - [ ] Mod Dependency Management
 - [ ] Integrated Mod Troubleshooting and Help Guide
+- [x] Windows Support
+- [ ] Linux Support
+- [ ] macOS Support
 
 ## How to Build
 
