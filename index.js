@@ -157,6 +157,7 @@ ipcMain.handle('increase-mod-priority', (event, modName) => {
 
     consoleM('Mod index:', modIndex);
 
+
     if (modIndex > 0) {
         // Swap mod positions in the modOrder array
         [modOrder[modIndex], modOrder[modIndex - 1]] = [modOrder[modIndex - 1], modOrder[modIndex]];
@@ -265,6 +266,7 @@ ipcMain.handle('get-game-metadata', async () => {
 
 const createWindow = () => {
 
+
     win = new BrowserWindow({
         width: 1200,
         height: 800,
@@ -284,6 +286,9 @@ const createWindow = () => {
         },
 
     })
+
+
+
     if (devMode) {
         win.webContents.openDevTools();
     }

@@ -1,3 +1,17 @@
+:root {
+    --title-bar-height: 32px;
+
+    --topbar-height: 25px;
+
+    --bottom-bar-height: 25px;
+
+    --full-height: calc(100vh - var(--title-bar-height));
+    --content-height: calc(100vh - var(--title-bar-height) - var(--topbar-height) - var(--bottom-bar-height));
+
+}
+
+
+
 body {
     color: white;
     font-family: Comfortaa, sans-serif;
@@ -56,7 +70,7 @@ body {
     margin-top: 32px;
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 32px);
+    height: var(--full-height);
 }
 
 #titlebar {
@@ -68,7 +82,7 @@ body {
     top: 0;
     left: 0;
     right: 0;
-    height: 32px;
+    height: var(--title-bar-height);
     z-index: 102;
 }
 
@@ -82,7 +96,7 @@ body {
 .content {
     display: flex;
     flex-grow: 1;
-    max-height: calc(100vh - 82px);
+    max-height: var(--content-height);
 }
 
 .modslist {
@@ -123,8 +137,8 @@ body {
 
 #bottombar {
     display: flex;
-    height: 25px;
-    min-height: 25px;
+    height: var(--bottom-bar-height);
+    min-height: var(--bottom-bar-height);
     min-width: 100vw;
 }
 
