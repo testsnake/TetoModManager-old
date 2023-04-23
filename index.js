@@ -7,8 +7,10 @@ const path = require('path');
 const userData = new Store({name: 'TMM-config'});
 const { parse, stringify } = require('@iarna/toml');
 const { parse: parseDate, isValid } = require('date-fns');
+
 let gameVersion;
 let win;
+let devMode;
 
 // Default profile structure
 const defaultProfile = {
@@ -34,7 +36,9 @@ const { spawn } = require('child_process');
 
 ipcMain.handle('get-mods', async () => {
     const gamePath = await getGamePath();
+    consoleM(`Scanning ${gamePath} for mods...`);
     await findValidMods(gamePath);
+    consoleM('Done scanning for mods');
     return userData.get('game.mods');
 });
 
@@ -48,7 +52,7 @@ ipcMain.handle('set-mod-status', async (event, modName, shouldBeEnabled) => {
         userData.set('profiles', profiles);
 
         userData.set('game.mods', mods);
-        console.log(`Mod ${modName} has been ${shouldBeEnabled ? 'enabled' : 'disabled'}`);
+        consoleM(`Mod ${modName} has been ${shouldBeEnabled ? 'enabled' : 'disabled'}`);
     } else {
         console.error(`Mod ${modName} not found`);
     }
@@ -59,7 +63,7 @@ ipcMain.on('launch-game', (event) => {
 });
 
 ipcMain.on('open-mod-folder', async (event) => {
-    console.log('Opening mod folder...')
+    consoleM('Opening mod folder...')
     const gamePath = await getGamePath();
     const modPath = path.join(gamePath, 'mods');
     spawn('explorer', [modPath]);
@@ -139,9 +143,9 @@ ipcMain.handle('set-default-profile', (event, profileName) => {
 });
 
 ipcMain.handle('increase-mod-priority', (event, modName) => {
-    console.log(`Attempting to increase priority of mod ${modName}`);
+    consoleM(`Attempting to increase priority of mod ${modName}`);
     const modOrder = currentProfile.modOrder;
-    console.log('Current mod order:', modOrder);
+    consoleM('Current mod order:', modOrder);
 
     // if modname is an int, then use that as the index
 
@@ -151,24 +155,24 @@ ipcMain.handle('increase-mod-priority', (event, modName) => {
         modIndex = parseInt(modName) - 1;
     }
 
-    console.log('Mod index:', modIndex);
+    consoleM('Mod index:', modIndex);
 
     if (modIndex > 0) {
         // Swap mod positions in the modOrder array
         [modOrder[modIndex], modOrder[modIndex - 1]] = [modOrder[modIndex - 1], modOrder[modIndex]];
         profiles[currentProfileName].modOrder = modOrder; // Update the modOrder in the profiles object
         userData.set('profiles', profiles);
-        console.log(`Mod ${modName} has been moved up in priority`);
-        console.log('Updated mod order:', modOrder);
+        consoleM(`Mod ${modName} has been moved up in priority`);
+        consoleM('Updated mod order:', modOrder);
     } else {
         console.error(`Cannot increase priority of mod ${modName}`);
     }
 });
 
 ipcMain.handle('decrease-mod-priority', (event, modName) => {
-    console.log(`Attempting to decrease priority of mod ${modName}`);
+    consoleM(`Attempting to decrease priority of mod ${modName}`);
     const modOrder = currentProfile.modOrder;
-    console.log('Current mod order:', modOrder);
+    consoleM('Current mod order:', modOrder);
 
     let modIndex = (typeof modName === 'number' && modName >= 0 && modName < modOrder.length) ? modName : modOrder.indexOf(modName);
 
@@ -176,15 +180,15 @@ ipcMain.handle('decrease-mod-priority', (event, modName) => {
         modIndex = parseInt(modName) - 1;
     }
 
-    console.log('Mod index:', modIndex);
+    consoleM('Mod index:', modIndex);
 
     if (modIndex >= 0 && modIndex < modOrder.length - 1) {
         // Swap mod positions in the modOrder array
         [modOrder[modIndex], modOrder[modIndex + 1]] = [modOrder[modIndex + 1], modOrder[modIndex]];
         profiles[currentProfileName].modOrder = modOrder; // Update the modOrder in the profiles object
         userData.set('profiles', profiles);
-        console.log(`Mod ${modName} has been moved down in priority`);
-        console.log('Updated mod order:', modOrder);
+        consoleM(`Mod ${modName} has been moved down in priority`);
+        consoleM('Updated mod order:', modOrder);
     } else {
         console.error(`Cannot decrease priority of mod ${modName}`);
     }
@@ -206,7 +210,7 @@ ipcMain.handle('get-console-value', async () => {
 
 ipcMain.handle('set-console-value', async (event, newValue) => {
     const gamePath = await getGamePath();
-    setGameConfigValue(gamePath, 'console', newValue);
+    await setGameConfigValue(gamePath, 'console', newValue);
 });
 
 ipcMain.handle('get-mods-value', async () => {
@@ -216,24 +220,24 @@ ipcMain.handle('get-mods-value', async () => {
 
 ipcMain.handle('set-mods-value', async (event, newValue) => {
     const gamePath = await getGamePath();
-    setGameConfigValue(gamePath, 'mods', newValue);
+    await setGameConfigValue(gamePath, 'mods', newValue);
 });
 
 ipcMain.handle('update-mod-priorities', async () => {
 
     const gamePath = await getGamePath();
-    console.log(`Updating mod priorities in ${gamePath}`);
+    consoleM(`Updating mod priorities in ${gamePath}`);
     const configPath = path.join(gamePath, 'config.toml');
-    console.log(`Updating mod priorities in ${configPath}`);
+    consoleM(`Updating mod priorities in ${configPath}`);
     const modOrder = currentProfile.modOrder;
 
     if (fs.existsSync(configPath)) {
         const config = parse(fs.readFileSync(configPath, 'utf-8'));
         config.priority = modOrder;
         fs.writeFileSync(configPath, stringify(config));
-        console.log('Mod priorities have been updated in the global config.toml file.');
+        consoleM('Mod priorities have been updated in the global config.toml file.');
     } else {
-        console.log('Could not find the global config.toml file.');
+        consoleM('Could not find the global config.toml file.');
     }
 });
 
@@ -260,6 +264,7 @@ ipcMain.handle('get-game-metadata', async () => {
 
 
 const createWindow = () => {
+
     win = new BrowserWindow({
         width: 1200,
         height: 800,
@@ -279,27 +284,28 @@ const createWindow = () => {
         },
 
     })
-
+    if (devMode) {
+        win.webContents.openDevTools();
+    }
 
     win.loadFile('src/index.html');
-    win.webContents.openDevTools();
+
     startup();
 }
 
 function startup() {
     getGamePath()
         .then((gamePath) => {
-            console.log('Game path:', gamePath);
+            consoleM('Game path:', gamePath);
             return findValidMods(gamePath, userData.get('firstRun'));
         })
         .then(() => {
-            console.log("Hello! You are on windows!");
             if (userData.get('firstRun') === undefined || userData.get('game.path') === null) {
                 userData.set('firstRun', true);
-                console.log("This is the first time you have run this app");
+                consoleM("This is the first time you have run this app");
                 return updateProfileWithCurrentModStatus();
             } else {
-                console.log("This is not the first time you have run this app");
+                consoleM("This is not the first time you have run this app");
             }
         })
         .catch((error) => {
@@ -323,62 +329,81 @@ async function getGamePathFromUser() {
 
 
 async function getGamePath() {
-    const appId = 1761390;
-
-    // Set Steam installation paths for different platforms
-    const platformSteamFolder = {
-        win32: 'C:\\Program Files (x86)\\Steam',
-        darwin: path.join(process.env.HOME, 'Library/Application Support/Steam'),
-        linux: path.join(process.env.HOME, '.local/share/Steam'),
-    };
-
-    const steamFolder = platformSteamFolder[process.platform];
-
-    const storedPath = userData.get(`steamGame.${appId}.installDir`);
-
-    if (storedPath) {
-        if (fs.existsSync(storedPath)) {
-            console.log('Using stored game path:', storedPath)
-            return storedPath;
-        } else {
-            // Remove the inaccurate path from the store
-            console.log('Removing inaccurate game path:', storedPath)
-            userData.delete(`steamGame.${appId}.installDir`);
-        }
-    }
-
-    const steamAppsFolder = path.join(steamFolder, 'steamapps');
-    const manifestFile = `appmanifest_${appId}.acf`;
-
     try {
-        const files = fs.readdirSync(steamAppsFolder);
+        const appId = 1761390;
+        consoleM(`App ID: ${appId}`);
+        // Set Steam installation paths for different platforms
+        let steamFolder;
 
-        for (const file of files) {
-            if (file === manifestFile) {
-                const manifestPath = path.join(steamAppsFolder, file);
-                const manifestContent = fs.readFileSync(manifestPath, 'utf-8');
-                const installDirMatch = manifestContent.match(/"installdir"\s+"(.+?)"/);
+        switch (process.platform) {
+            case 'win32':
+                steamFolder = 'C:\\Program Files (x86)\\Steam';
+                break;
+            case 'darwin':
+                steamFolder = path.join(process.env.HOME, 'Library/Application Support/Steam');
+                break;
+            case 'linux':
+                steamFolder = path.join(process.env.HOME, '.local/share/Steam');
+                break;
+            default:
+                console.error(`Unsupported platform: ${process.platform}`);
+                break;
+        }
 
-                if (installDirMatch && installDirMatch[1]) {
-                    const installDir = path.join(steamAppsFolder, 'common', installDirMatch[1]);
-                    userData.set(`steamGame.${appId}.installDir`, installDir);
-                    return installDir;
-                }
+        consoleM(`Steam folder for ${process.platform}: ${steamFolder}`);
+
+        consoleM(`Steam folder: ${steamFolder}`);
+
+        const storedPath = userData.get(`steamGame.${appId}.installDir`);
+
+        consoleM(`Stored path: ${storedPath}`);
+
+        if (storedPath) {
+            if (fs.existsSync(storedPath)) {
+                consoleM('Using stored game path:', storedPath)
+                return storedPath;
+            } else {
+                // Remove the inaccurate path from the store
+                consoleM('Removing inaccurate game path:', storedPath)
+                userData.delete(`steamGame.${appId}.installDir`);
             }
         }
-    } catch (error) {
-        console.error('Error while searching for the game path:', error);
-    }
 
-    // If the function didn't return earlier, call getGamePathFromUser()
-    return await getGamePathFromUser();
+        const steamAppsFolder = path.join(steamFolder, 'steamapps');
+        const manifestFile = `appmanifest_${appId}.acf`;
+
+        try {
+            const files = fs.readdirSync(steamAppsFolder);
+
+            for (const file of files) {
+                if (file === manifestFile) {
+                    const manifestPath = path.join(steamAppsFolder, file);
+                    const manifestContent = fs.readFileSync(manifestPath, 'utf-8');
+                    const installDirMatch = manifestContent.match(/"installdir"\s+"(.+?)"/);
+
+                    if (installDirMatch && installDirMatch[1]) {
+                        const installDir = path.join(steamAppsFolder, 'common', installDirMatch[1]);
+                        userData.set(`steamGame.${appId}.installDir`, installDir);
+                        return installDir;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error while searching for the game path:', error);
+            consoleM(`Could not find the game path in ${steamAppsFolder}.`)
+        }
+        return await getGamePathFromUser();
+        // If the function didn't return earlier, call getGamePathFromUser()
+    } catch (error) {
+        consoleM(`Error while getting the game path: ${error}`);
+    }
 }
 
 async function findValidMods(gamePath) {
     const modsFolderPath = path.join(gamePath, 'mods');
 
     if (!fs.existsSync(modsFolderPath)) {
-        console.log('Mods folder not found');
+        consoleM('Mods folder not found');
         return;
     }
 
@@ -391,7 +416,7 @@ async function findValidMods(gamePath) {
     // Remove mods that don't exist anymore
     for (const modName in currentMods) {
         if (!folders.includes(modName)) {
-            console.log(`Removing mod: ${modName}`);
+            consoleM(`Removing mod: ${modName}`);
             delete currentMods[modName];
             const modOrderIndex = currentProfile.modOrder.indexOf(modName);
             if (modOrderIndex !== -1) {
@@ -460,6 +485,12 @@ async function findValidMods(gamePath) {
         const enabledLine = lines.find(line => line.startsWith('enabled ='));
         const enabled = enabledLine && enabledLine.includes('true');
 
+        const nameLine = lines.find(line => line.startsWith('name ='));
+        let internalName;
+        if (nameLine) {
+            internalName = nameLine.split('=')[1].trim();
+        }
+
         const dateLine = lines.find(line => line.startsWith('date ='));
         const versionLine = lines.find(line => line.startsWith('version ='));
         const descriptionLine = lines.find(line => line.startsWith('description ='));
@@ -488,15 +519,15 @@ async function findValidMods(gamePath) {
             // Use the existing timestamp if available, otherwise use the current timestamp
             firstDetected = currentMods[folder].firstDetected || firstDetected;
         } else {
-            console.log(`First time detecting mod: ${folder}`);
+            consoleM(`First time detecting mod: ${folder}`);
         }
 
         const profileEnabledStatus = currentProfile.enabledMods.hasOwnProperty(folder) ? currentProfile.enabledMods[folder] : enabled;
-        console.log(`Mod: ${folder}, enabled: ${enabled}, profile enabled: ${profileEnabledStatus}, previous enabled: ${currentMods[folder] && currentMods[folder].enabled}`);
+        consoleM(`Mod: ${folder}, enabled: ${enabled}, profile enabled: ${profileEnabledStatus}, previous enabled: ${currentMods[folder] && currentMods[folder].enabled}`);
 
         const priority = currentProfile.modOrder.indexOf(folder) + 1;
 
-        console.log(`Adding mod: ${folder}, path: ${modFolderPath}, first detected: ${firstDetected}, enabled: ${profileEnabledStatus}, date: ${date}, version: ${version}, description: ${description}, author: ${author}, priority: ${priority}`);
+        consoleM(`Adding mod: ${folder}, path: ${modFolderPath}, first detected: ${firstDetected}, enabled: ${profileEnabledStatus}, date: ${date}, version: ${version}, description: ${description}, author: ${author}, priority: ${priority}`);
 
         if (metaData.source || metaData.updates) {
             isUpdatable = true;
@@ -511,7 +542,7 @@ async function findValidMods(gamePath) {
             description,
             author,
             priority: priority,
-            name: metaData.name ?? folder, // Add the name from meta.json, or use the folder name as a fallback
+            name: metaData.name ?? internalName ?? folder,
             descriptionLong: metaData.descriptionLong,
             firstRelease: metaData.firstRelease,
             lastUpdate: metaData.lastUpdate,
@@ -542,7 +573,7 @@ async function findValidMods(gamePath) {
     userData.set('game.mods', currentMods);
     userData.set('profiles', profiles);
 
-    console.log('Finished detecting mods');
+    consoleM('Finished detecting mods');
 }
 
 
@@ -562,14 +593,14 @@ function setModStatus(modPath, shouldBeEnabled) {
 
     const enabledLineIndex = lines.findIndex(line => line.startsWith('enabled ='));
     if (enabledLineIndex === -1) {
-        console.log(`Could not find the enabled line in ${configPath}`);
+        consoleM(`Could not find the enabled line in ${configPath}`);
         return;
     }
 
     lines[enabledLineIndex] = `enabled = ${shouldBeEnabled}`;
 
     writeConfig(configPath, lines);
-    console.log(`Mod at ${modPath} has been ${shouldBeEnabled ? 'enabled' : 'disabled'}`);
+    consoleM(`Mod at ${modPath} has been ${shouldBeEnabled ? 'enabled' : 'disabled'}`);
 }
 
 function isModEnabled(modPath) {
@@ -578,7 +609,7 @@ function isModEnabled(modPath) {
 
     const enabledLineIndex = lines.findIndex(line => line.startsWith('enabled ='));
     if (enabledLineIndex === -1) {
-        console.log(`Could not find the enabled line in ${configPath}`);
+        consoleM(`Could not find the enabled line in ${configPath}`);
         return false;
     }
 
@@ -616,7 +647,7 @@ async function setGameConfigValue(gamePath, key, newValue) {
     if (lineIndex !== -1) {
         lines[lineIndex] = `${key} = ${newValue}`;
         writeConfig(configPath, lines);
-        console.log(`Value of ${key} in ${configPath} has been set to ${newValue}`);
+        consoleM(`Value of ${key} in ${configPath} has been set to ${newValue}`);
     } else {
         console.error(`Could not find the ${key} line in ${configPath}`);
     }
@@ -676,9 +707,20 @@ async function getModLoaderVersion() {
     return config.version;
 }
 
+function consoleM(message) {
+    if (devMode) {
+        console.log(message);
+        if (win) {
+            win.webContents.send('debug-message', `${message}`);
+        }
+    }
+}
 
 
 
 app.whenReady().then(() => {
+    if (process.env.NODE_ENV === 'development') {
+        devMode = true;
+    }
     createWindow()
 })

@@ -60,7 +60,7 @@ async function getMods() {
         <th data-sort-key="description" id="header-description">Description</th>
         <th data-sort-key="author" id="header-author">Author</th>
         <th data-sort-key="version" id="header-version">Version</th>
-        <th data-sort-key="date" id="header-date">Date</th>
+<!--        <th data-sort-key="date" id="header-date">Date</th>-->
       </tr>
     </thead>
     <tbody>
@@ -140,6 +140,7 @@ function populateRows(mods, selectedModName = null) {
 
         const modNameCell = document.createElement('td');
         modNameCell.appendChild(document.createTextNode(modName.replace(/^"(.*)"$/, '$1')));
+        modNameCell.setAttribute('title', mod.name.replace(/^"(.*)"$/, '$1'));
         row.appendChild(modNameCell);
 
         const enabledCell = document.createElement('td');
@@ -161,9 +162,10 @@ function populateRows(mods, selectedModName = null) {
         versionCell.appendChild(document.createTextNode(mod.version ? mod.version.replace(/^"(.*)"$/, '$1') : ''));
         row.appendChild(versionCell);
 
-        const dateCell = document.createElement('td');
-        dateCell.appendChild(document.createTextNode(mod.date ? mod.date.replace(/^"(.*)"$/, '$1') : ''));
-        row.appendChild(dateCell);
+        // TODO - impliment date correctly
+        // const dateCell = document.createElement('td');
+        // dateCell.appendChild(document.createTextNode(mod.date ? mod.date.replace(/^"(.*)"$/, '$1') : ''));
+        // row.appendChild(dateCell);
 
         const updatableCell = document.createElement('td');
         const imageElement = document.createElement('img');
@@ -172,11 +174,13 @@ function populateRows(mods, selectedModName = null) {
             imageElement.setAttribute('src', 'img/banana.svg');
             imageElement.setAttribute('class', 'gamebanana-icon icon');
             imageElement.setAttribute('id', `${mod.source}`);
-            imageElement.setAttribute('alt', 'GameBanana Mod, Can be updated from Teto Mod Manager')
+            imageElement.setAttribute('alt', 'GameBanana Mod, Can be updated from Teto Mod Manager');
+            imageElement.setAttribute('title', 'Installed via DMM or TMM, Can be updated from Teto Mod Manager');
         } else {
             imageElement.setAttribute('src', 'img/settings.svg');
             imageElement.setAttribute('class', 'settings-icon icon');
             imageElement.setAttribute('alt', 'Manually installed mod, cannot be updated from Teto Mod Manager')
+            imageElement.setAttribute('title', 'Manually installed mod, cannot be updated from Teto Mod Manager')
         }
 
 
@@ -364,6 +368,10 @@ ipcRenderer.on('alert-user', async (event, alertMessage) => {
     popupAlert(alertMessage);
 });
 
+ipcRenderer.on('debug-message', async (event, debugMessage) => {
+    console.log(debugMessage);
+});
+
 // Function to show the mod info in the mod info panel when selected
 function showModInfo(mod) {
     const modInfoPanel = document.getElementById('mod-info-panel');
@@ -376,7 +384,7 @@ function showModInfo(mod) {
     }
 
     const modName = document.createElement('h2');
-    modName.textContent = mod.name.replace(/^[! ]*(.*)$/, '$1');
+    modName.textContent = mod.name.replace(/^[! \s"']*([\s\S]*?)[! \s"']*$/, '$1');
     modInfoPanel.appendChild(modName);
 
 
