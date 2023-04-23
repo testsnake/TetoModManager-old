@@ -38,10 +38,12 @@ async function populateMetaData() {
     const mDataGamePath = document.getElementById('game-path');
     const mDataModCount = document.getElementById('mod-count');
     const mDataDMLVersion = document.getElementById('mod-loader-version');
+    const mDataTMMVersion = document.getElementById('tmm-version');
     const gameMetadata = await ipcRenderer.invoke('get-game-metadata');
     mDataGameVersion.innerText = `MM+: ${gameMetadata.gameVersion}`;
     //mDataGamePath.innerText = gameMetadata.gamePath;
     mDataModCount.innerText = `Mods: ${gameMetadata.modCount}`;
+    mDataTMMVersion.innerText = `TMM: ${gameMetadata.tmmVersion}`;
     mDataDMLVersion.innerText = `DML: ${gameMetadata.dmlVersion}`;
 }
 

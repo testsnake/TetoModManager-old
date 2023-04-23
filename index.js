@@ -254,11 +254,13 @@ ipcMain.handle('get-game-metadata', async () => {
     // const gamePath = await getGamePath()
     const modCount = Object.keys(userData.get('game.mods')).length;
     const modloaderVersion = await getModLoaderVersion();
+    const tmmVersion = app.getVersion();
     return {
         "gameVersion": gameVersion,
         // "gamePath": gamePath,
         "modCount": modCount,
-        "dmlVersion": modloaderVersion
+        "dmlVersion": modloaderVersion,
+        "tmmVersion": tmmVersion
     }
 });
 
