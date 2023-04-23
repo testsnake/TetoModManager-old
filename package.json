@@ -1,20 +1,42 @@
 {
-  "name": "newmodmanager",
-  "version": "1.0.0",
+  "name": "tetomodmanager",
+  "version": "0.0.1",
   "description": "Mod Manager for Mega Mix+",
   "main": "index.js",
   "scripts": {
     "start": "electron .",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:win": "electron-builder --windows",
+    "build:linux": "electron-builder --linux",
+    "build:mac": "electron-builder --mac"
   },
   "author": "testsnake",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^24.1.2"
+    "electron": "^24.1.2",
+    "electron-builder": "^24.2.1"
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",
+    "date-fns": "^2.29.3",
     "electron-store": "^8.1.0",
     "toml": "^3.0.0"
+  },
+  "build": {
+    "appId": "com.testsnake.tetomodmanager",
+    "productName": "Teto Mod Manager",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "portable"
+    },
+    "linux": {
+      "target": "AppImage"
+    },
+    "mac": {
+      "target": "dmg"
+    }
   }
+
 }

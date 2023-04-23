@@ -12,6 +12,46 @@ body {
 
 }
 
+.scrollable {
+    overflow: scroll;
+    height: 100%; /* define your custom height */
+}
+
+/* Style the scrollbar */
+.scrollable::-webkit-scrollbar {
+    width: 10px;
+}
+
+.scrollable::-webkit-scrollbar-corner {
+    background: rgba(0, 0, 0, 0);
+}
+
+.scrollable::-webkit-scrollbar-thumb {
+    background-color: #99a;
+    border-radius: 8px;
+    border: 4px solid rgba(0, 0, 0, 0);
+    background-clip: content-box;
+    min-width: 32px;
+    min-height: 32px;
+
+    /* Add a transition for easing-out effect */
+    transition: all 0.3s ease-out;
+}
+
+.scrollable::-webkit-scrollbar-track {
+    background-color: rgba(0, 0, 0, 0);
+}
+
+/* Style the scrollbar on hover */
+.scrollable::-webkit-scrollbar-thumb:hover {
+    background-color: #ccc;
+    border-radius: 0;
+    transition: all 0.3s ease-out;
+}
+
+
+
+
 #page {
     margin-top: 32px;
     display: flex;
@@ -39,9 +79,15 @@ body {
     left: 10px;
 }
 
+.content {
+    display: flex;
+    flex-grow: 1;
+    max-height: calc(100vh - 82px);
+}
+
 .modslist {
     /* Set the height and width of the div */
-    height: calc(100vh - 50px);
+    /*height: calc(100vh - 50px);*/
     width: auto;
     flex-grow: 1;
 
@@ -58,13 +104,28 @@ body {
     overflow-x: hidden;
 }
 
-.modinfo {
-
-    width: 500px;
+#mod-info-panel {
+    height: 100%;
+    flex-grow: 1;
+    width: 300px;
+    min-width: 300px;
+    max-width: 300px;
+    overflow-y: auto;
 }
+
 
 #topbar {
     display: flex;
+    height: 25px;
+    min-height: 25px;
+    min-width: 100vw;
+}
+
+#bottombar {
+    display: flex;
+    height: 25px;
+    min-height: 25px;
+    min-width: 100vw;
 }
 
 .content {
@@ -75,6 +136,10 @@ body {
 tr.mod-row:hover {
     background-color: rgba(255, 100, 100, 0.1);
     transition: background-color 0.02s linear;
+}
+
+tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.05);
 }
 
 tr.selected {
@@ -89,10 +154,12 @@ tr.selected:hover {
     transition: background-color 0.1s linear;
 }
 
+
+
 #dialog-overlay {
     display: none;
     position: fixed;
-    top: 32;
+    top: 32px;
     left: 0;
     width: 100%;
     height: 100%;
@@ -138,5 +205,21 @@ tr.selected:hover {
 #dialog-buttons button:hover {
     background-color: #0056b3;
 }
+
+.mod-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.mod-image {
+    width: 100%;
+    object-fit: contain;
+}
+
+.icon {
+    filter: invert(100%) brightness(100%);
+    height: 1em;
+}
+
 
 

@@ -1,4 +1,5 @@
 const { ipcRenderer } = require('electron');
+const fs = require("fs");
 
 let mods;
 let tbody;
@@ -118,17 +119,58 @@ function populateRows(mods, selectedModName = null) {
         const mod = mods[modName];
 
         const row = document.createElement('tr');
-        row.innerHTML = `
-        <td>${mod.priority !== null ? mod.priority : ''}</td>
-        <td>${modName.replace(/^"(.*)"$/, '$1')}</td>
-        <td><input type="checkbox" ${mod.enabled ? 'checked' : ''}></td>
-        <td>${mod.description ? mod.description.replace(/^"(.*)"$/, '$1') : ''}</td>
-        <td>${mod.author ? mod.author.replace(/^"(.*)"$/, '$1') : ''}</td>
-        <td>${mod.version ? mod.version.replace(/^"(.*)"$/, '$1') : ''}</td>
-        <td>${mod.date ? mod.date.replace(/^"(.*)"$/, '$1') : ''}</td>
-        `;
 
-        // Add the 'selected' class if the mod name matches the selectedModName
+        const priorityCell = document.createElement('td');
+        priorityCell.appendChild(document.createTextNode(mod.priority !== null ? mod.priority : ''));
+        row.appendChild(priorityCell);
+
+        const modNameCell = document.createElement('td');
+        modNameCell.appendChild(document.createTextNode(modName.replace(/^"(.*)"$/, '$1')));
+        row.appendChild(modNameCell);
+
+        const enabledCell = document.createElement('td');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = mod.enabled;
+        enabledCell.appendChild(checkbox);
+        row.appendChild(enabledCell);
+
+        const descriptionCell = document.createElement('td');
+        descriptionCell.appendChild(document.createTextNode(mod.description ? mod.description.replace(/^"(.*)"$/, '$1') : ''));
+        row.appendChild(descriptionCell);
+
+        const authorCell = document.createElement('td');
+        authorCell.appendChild(document.createTextNode(mod.author ? mod.author.replace(/^"(.*)"$/, '$1') : ''));
+        row.appendChild(authorCell);
+
+        const versionCell = document.createElement('td');
+        versionCell.appendChild(document.createTextNode(mod.version ? mod.version.replace(/^"(.*)"$/, '$1') : ''));
+        row.appendChild(versionCell);
+
+        const dateCell = document.createElement('td');
+        dateCell.appendChild(document.createTextNode(mod.date ? mod.date.replace(/^"(.*)"$/, '$1') : ''));
+        row.appendChild(dateCell);
+
+        const updatableCell = document.createElement('td');
+        const imageElement = document.createElement('img');
+
+        if (mod.isupdatable) {
+            imageElement.setAttribute('src', 'img/banana.svg');
+            imageElement.setAttribute('class', 'gamebanana-icon icon');
+            imageElement.setAttribute('id', `${mod.source}`);
+            imageElement.setAttribute('alt', 'GameBanana Mod, Can be updated from Teto Mod Manager')
+        } else {
+            imageElement.setAttribute('src', 'img/settings.svg');
+            imageElement.setAttribute('class', 'settings-icon icon');
+            imageElement.setAttribute('alt', 'Manually installed mod, cannot be updated from Teto Mod Manager')
+        }
+
+
+
+        updatableCell.appendChild(imageElement);
+        row.appendChild(updatableCell);
+
+
         if (modName === selectedModName) {
             row.classList.add('selected');
         }
@@ -139,11 +181,10 @@ function populateRows(mods, selectedModName = null) {
             selectedRows.forEach((selectedRow) => {
                 selectedRow.classList.remove('selected');
             });
-            console.log(modName)
             row.classList.add('selected');
+            showModInfo(mod);
         });
 
-        const checkbox = row.querySelector('input[type="checkbox"]');
         checkbox.addEventListener('click', () => {
             ipcRenderer.invoke('set-mod-status', modName, checkbox.checked);
         });
@@ -151,6 +192,7 @@ function populateRows(mods, selectedModName = null) {
         tbody.appendChild(row);
     }
 }
+
 
 // Function to get profiles
 async function getProfiles() {
@@ -169,6 +211,8 @@ async function getProfiles() {
         option.innerText = profileName;
         profileSelector.appendChild(option);
     }
+
+
 
     // Set the active profile and update the mod list
     profileSelector.addEventListener('change', async () => {
@@ -285,6 +329,70 @@ async function reloadMods(selectedModName = null) {
     ipcRenderer.invoke('update-mod-priorities');
 }
 
+ipcRenderer.on('get-path-from-user', async () => {
+    const result = await popupPrompt('Could not find path to game folder. Enter the path to the game folder');
+    ipcRenderer.send('returned-path-from-user', result);
+});
+
+ipcRenderer.on('alert-user', async (event, alertMessage) => {
+
+    popupAlert(alertMessage);
+});
+
+// Function to show the mod info in the mod info panel when selected
+function showModInfo(mod) {
+    const modInfoPanel = document.getElementById('mod-info-panel');
+    console.log(JSON.stringify(mod));
+
+    if (modInfoPanel) {
+        while (modInfoPanel.firstChild) {
+            modInfoPanel.removeChild(modInfoPanel.firstChild);
+        }
+    }
+
+    const modName = document.createElement('h2');
+    modName.textContent = mod.name.replace(/^[! ]*(.*)$/, '$1');
+    modInfoPanel.appendChild(modName);
+
+
+    const modImageLink = (fs.existsSync(mod.banner) || /\.(jpeg|jpg|gif|png)$/i.test(mod.banner)) ? mod.banner : 'img/no-image.png';
+    const modImage = document.createElement('img');
+    modImage.src = modImageLink;
+    modImage.classList.add('mod-image');
+    modInfoPanel.appendChild(modImage);
+
+    if (mod.descriptionLong) {
+        mod.description = mod.descriptionLong;
+    }
+
+    const descriptionLines = mod.description.split('\n');
+
+    descriptionLines.forEach((line) => {
+        const modDescription = document.createElement('p');
+        modDescription.textContent = line.replace(/^"(.*)"$/, '$1');
+        modInfoPanel.appendChild(modDescription);
+    });
+
+
+    if (mod.author) {
+        const modAuthor = document.createElement('p');
+        modAuthor.textContent = `Author: ${mod.author.replace(/^"(.*)"$/, '$1')}`;
+        modInfoPanel.appendChild(modAuthor);
+    }
+
+    if (mod.version) {
+        const modVersion = document.createElement('p');
+        modVersion.textContent = `Version: ${mod.version.replace(/^"(.*)"$/, '$1')}`;
+        modInfoPanel.appendChild(modVersion);
+    }
+
+    if (mod.isupdatable) {
+        const modUpdate = document.createElement('p');
+        modUpdate.textContent = `Mod is updatable via TMM`
+        modInfoPanel.appendChild(modUpdate);
+    }
+}
+
 
 // Web layout functions
 
@@ -349,3 +457,4 @@ function popupPrompt(message) {
         });
     });
 }
+

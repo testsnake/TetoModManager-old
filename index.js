@@ -1,11 +1,14 @@
 const { app, BrowserWindow } = require('electron')
 const fs = require('fs');
 const Store = require('electron-store');
+const crypto = require("crypto");
 const { ipcMain , shell} = require('electron');
 const path = require('path');
-const userData = new Store({name: 'NMM-config'});
+const userData = new Store({name: 'TMM-config'});
 const { parse, stringify } = require('@iarna/toml');
+const { parse: parseDate, isValid } = require('date-fns');
 
+let win;
 
 // Default profile structure
 const defaultProfile = {
@@ -21,9 +24,8 @@ userData.set('profiles', profiles);
 // Set the current profile
 let currentProfileName = userData.get('currentProfile') || 'Default';
 let currentProfile = profiles[currentProfileName];
-
-
 const { spawn } = require('child_process');
+
 
 
 
@@ -35,20 +37,6 @@ ipcMain.handle('get-mods', async () => {
     await findValidMods(gamePath);
     return userData.get('game.mods');
 });
-
-// ipcMain.handle('set-mod-status', async (event, modName, shouldBeEnabled) => {
-//     const mods = userData.get('game.mods');
-//     const mod = mods[modName];
-//
-//     if (mod) {
-//         setModStatus(mod.path, shouldBeEnabled);
-//         mod.enabled = shouldBeEnabled;
-//         userData.set('game.mods', mods);
-//         console.log(`Mod ${modName} has been ${shouldBeEnabled ? 'enabled' : 'disabled'}`);
-//     } else {
-//         console.error(`Mod ${modName} not found`);
-//     }
-// });
 
 ipcMain.handle('set-mod-status', async (event, modName, shouldBeEnabled) => {
     const mods = userData.get('game.mods');
@@ -77,10 +65,12 @@ ipcMain.on('open-mod-folder', async (event) => {
     spawn('explorer', [modPath]);
 });
 
-ipcMain.handle('create-profile', (event, profileName) => {
+ipcMain.handle('create-profile', async (event, profileName) => {
     if (!profiles[profileName]) {
         profiles[profileName] = { ...defaultProfile, name: profileName };
         userData.set('profiles', profiles);
+        currentProfile = profiles[profileName];
+        await updateProfileWithCurrentModStatus();
     } else {
         console.error(`Profile ${profileName} already exists`);
     }
@@ -101,15 +91,29 @@ ipcMain.handle('rename-profile', (event, oldProfileName, newProfileName) => {
 });
 
 ipcMain.handle('delete-profile', (event, profileName) => {
-    if (profiles[profileName] && profileName !== 'Default') {
-        delete profiles[profileName];
-        userData.set('profiles', profiles);
-        if (currentProfileName === profileName) {
-            currentProfileName = 'Default';
-            userData.set('currentProfile', currentProfileName);
+    const profiles = userData.get('profiles');
+    if (profiles) {
+        const keyCount = Object.keys(profiles).length;
+        if (profiles[profileName] && profileName !== 'Default' && keyCount > 1) {
+            delete profiles[profileName];
+            userData.set('profiles', profiles);
+            if (currentProfileName === profileName) {
+                currentProfileName = 'Default';
+                userData.set('currentProfile', currentProfileName);
+            }
+        } else {
+            console.error(`Cannot delete profile: ${profileName}`);
+            if (win) {
+                win.webContents.send('alert-user', `Cannot delete profile: ${profileName}`);
+            }
+
+
         }
     } else {
         console.error(`Cannot delete profile: ${profileName}`);
+        if (win) {
+            win.webContents.send('alert-user', `Cannot delete profile: ${profileName}`);
+        }
     }
 });
 
@@ -238,10 +242,21 @@ ipcMain.handle('open-gamebanana', () => {
     shell.openExternal('https://gamebanana.com/games/16522');
 });
 
+ipcMain.handle('get-game-metadata', async () => {
+    const gameVersion = await getGameVersion()
+    const gamePath = await getGamePath()
+    const modloaderVersion = await getModLoaderVersion();
+    return {
+        gameVersion,
+        gamePath,
+        modloaderVersion
+    }
+});
+
 
 
 const createWindow = () => {
-    const win = new BrowserWindow({
+    win = new BrowserWindow({
         width: 1200,
         height: 800,
         titleBarStyle: 'hidden',
@@ -278,6 +293,7 @@ function startup() {
             if (userData.get('firstRun') === undefined || userData.get('game.path') === null) {
                 userData.set('firstRun', true);
                 console.log("This is the first time you have run this app");
+                return updateProfileWithCurrentModStatus();
             } else {
                 console.log("This is not the first time you have run this app");
             }
@@ -289,8 +305,18 @@ function startup() {
 
 
 async function getGamePathFromUser() {
-    // TODO: Implement this function to get the game path from the user, e.g., through a dialog
+    return new Promise((resolve) => {
+        if (win) {
+            win.webContents.send('get-path-from-user');
+            ipcMain.once('returned-path-from-user', (event, result) => {
+                resolve(result);
+            });
+        } else {
+            resolve(null);
+        }
+    });
 }
+
 
 async function getGamePath() {
     const appId = 1761390;
@@ -341,7 +367,7 @@ async function getGamePath() {
     }
 
     // If the function didn't return earlier, call getGamePathFromUser()
-    return getGamePathFromUser();
+    return await getGamePathFromUser();
 }
 
 async function findValidMods(gamePath) {
@@ -387,6 +413,40 @@ async function findValidMods(gamePath) {
         const modFolderPath = path.join(modsFolderPath, folder);
         const configPath = path.join(modFolderPath, 'config.toml');
 
+        // For compatibility with (NML) mods
+        const metaJsonPath = path.join(modFolderPath, 'meta.json');
+        let metaData = {};
+        let isNMLmod = false;
+        let isUpdatable = false;
+        if (fs.existsSync(metaJsonPath)) {
+            try {
+                metaData = JSON.parse(fs.readFileSync(metaJsonPath, 'utf-8'));
+                isNMLmod = true;
+            } catch (error) {
+                console.error(`Error parsing meta.json for mod ${folder}:`, error.message);
+            }
+        }
+
+        // For compatibility with DivaModManager installs
+        const modJsonPath = path.join(modFolderPath, 'mod.json');
+        if (fs.existsSync(modJsonPath)) {
+            try {
+                const modJson = JSON.parse(fs.readFileSync(modJsonPath, 'utf-8'));
+                if (!metaData.source) {
+                    metaData.source = modJson.homepage;
+                }
+                if (!metaData.banner) {
+                    metaData.banner = modJson.preview;
+                }
+                if (!metaData.description) {
+                    metaData.description = modJson.description;
+                }
+
+            } catch (error) {
+                console.error(`Error parsing mod.json for mod ${folder}:`, error.message);
+            }
+        }
+
         if (!fs.existsSync(configPath)) {
             continue;
         }
@@ -401,10 +461,22 @@ async function findValidMods(gamePath) {
         const descriptionLine = lines.find(line => line.startsWith('description ='));
         const authorLine = lines.find(line => line.startsWith('author ='));
 
-        const date = dateLine ? dateLine.split('=')[1].trim() : '';
-        const version = versionLine ? versionLine.split('=')[1].trim() : '';
-        const description = descriptionLine ? descriptionLine.split('=')[1].trim() : '';
-        const author = authorLine ? authorLine.split('=')[1].trim() : '';
+        const dateFormats = ['dd.MM.yyyy', 'yyyy-MM-dd', 'MM/dd/yyyy'];
+        let parsedDate = null;
+        if (dateLine) {
+            for (const format of dateFormats) {
+                const tempDate = parseDate(dateLine.split('=')[1].trim(), format, new Date());
+                if (isValid(tempDate)) {
+                    parsedDate = tempDate;
+                    break;
+                }
+            }
+        }
+        const date = metaData.date ?? (parsedDate ? parsedDate.toISOString() : '');
+
+        const version = metaData.version ? metaData.version.join('.') : (versionLine ? versionLine.split('=')[1].trim() : '');
+        const description = metaData.description ?? (descriptionLine ? descriptionLine.split('=')[1].trim() : '');
+        const author = metaData.authors ? metaData.authors.join(', ') : (authorLine ? authorLine.split('=')[1].trim() : '');
 
         let firstDetected = new Date().toISOString();
 
@@ -422,6 +494,10 @@ async function findValidMods(gamePath) {
 
         console.log(`Adding mod: ${folder}, path: ${modFolderPath}, first detected: ${firstDetected}, enabled: ${profileEnabledStatus}, date: ${date}, version: ${version}, description: ${description}, author: ${author}, priority: ${priority}`);
 
+        if (metaData.source || metaData.updates) {
+            isUpdatable = true;
+        }
+
         currentMods[folder] = {
             path: modFolderPath,
             firstDetected,
@@ -430,7 +506,22 @@ async function findValidMods(gamePath) {
             version,
             description,
             author,
-            priority: priority
+            priority: priority,
+            name: metaData.name ?? folder, // Add the name from meta.json, or use the folder name as a fallback
+            descriptionLong: metaData.descriptionLong,
+            firstRelease: metaData.firstRelease,
+            lastUpdate: metaData.lastUpdate,
+            tags: metaData.tags,
+            supportedVersions: metaData.supportedVersions,
+            loadBefore: metaData.loadBefore,
+            loadAfter: metaData.loadAfter,
+            updates: metaData.updates,
+            banner: metaData.banner,
+            source: metaData.source,
+            settingsFile: metaData.settingsFile,
+            dependencies: metaData.dependencies,
+            isnmlmod: isNMLmod,
+            isupdatable: isUpdatable,
         };
 
 
@@ -477,6 +568,31 @@ function setModStatus(modPath, shouldBeEnabled) {
     console.log(`Mod at ${modPath} has been ${shouldBeEnabled ? 'enabled' : 'disabled'}`);
 }
 
+function isModEnabled(modPath) {
+    const configPath = path.join(modPath, 'config.toml');
+    const lines = readConfig(configPath);
+
+    const enabledLineIndex = lines.findIndex(line => line.startsWith('enabled ='));
+    if (enabledLineIndex === -1) {
+        console.log(`Could not find the enabled line in ${configPath}`);
+        return false;
+    }
+
+    return lines[enabledLineIndex].split('=')[1].trim() === 'true';
+}
+
+async function updateProfileWithCurrentModStatus() {
+    const gamePath = await getGamePath();
+    const mods = userData.get('game.mods');
+
+    for (const modName in mods) {
+        const mod = mods[modName];
+        currentProfile.enabledMods[modName] = isModEnabled(mod.path);
+    }
+
+    userData.set('profiles', profiles);
+}
+
 
 async function readGameConfigValue(gamePath, key) {
     const configPath = path.join(gamePath, 'config.toml');
@@ -513,7 +629,48 @@ async function updateModStatusesBasedOnProfile(profile) {
 }
 
 
+async function getGameVersion() {
+    const gameDirPath = await getGamePath();
+    const gamePath = path.join(gameDirPath.toString(), "DiveMegaMix.exe");
+    return new Promise((resolve, reject) => {
+        const hash = crypto.createHash("md5");
+        const stream = fs.createReadStream(gamePath);
+        stream.on("error", (err) => {
+            reject(err);
+        });
+        stream.on("data", (data) => {
+            hash.update(data);
+        });
+        stream.on("end", () => {
+            const hashValue = hash.digest("hex");
+            switch (hashValue) {
+                case "940dec9a8924837748cd80e00fb6ec85":
+                    resolve("1.00");
+                    break;
+                case "166f9da061b346735c7199a978511e5e":
+                    resolve("1.01");
+                    break;
+                case "26d808a17cbe83717d6a09ca18a5bd4b":
+                    resolve("1.02");
+                    break;
+                case "813e1befae1776d4fafdf907e509b28b":
+                    resolve("1.03");
+                    break;
+                default:
+                    reject("Unknown version");
+                    break;
+            }
+        });
+    });
+}
 
+async function getModLoaderVersion() {
+    const gameDirPath = await getGamePath();
+    const modLoaderPath = path.join(gameDirPath.toString(), "config.toml");
+    const configData = await fs.readFile(modLoaderPath, "utf-8");
+    const config = parse(configData);
+    return config.version;
+}
 
 
 
