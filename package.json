@@ -1,6 +1,6 @@
 {
   "name": "tetomodmanager",
-  "version": "0.0.2-dev",
+  "version": "0.0.3-dev1",
   "description": "Mod Manager for Mega Mix+",
   "main": "index.js",
   "scripts": {
@@ -24,6 +24,7 @@
   "dependencies": {
     "@iarna/toml": "^2.2.5",
     "7zip-bin": "^5.2.0",
+    "axios": "^1.3.6",
     "date-fns": "^2.29.3",
     "diskusage": "^1.1.3",
     "electron-store": "^8.1.0",
