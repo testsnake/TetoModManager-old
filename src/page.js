@@ -5,6 +5,44 @@ let mods;
 let tbody;
 let activeProfile;
 let currentProfiles;
+let gamepadHoldTimeout;
+let gamepadKeybinds = {
+    "dpadUp": 12,
+    "dpadDown": 13,
+    "dpadLeft": 14,
+    "dpadRight": 15,
+    "buttonOptions": 9,
+    "buttonShare": 8,
+    "buttonSquare": 2,
+    "buttonTriangle": 3,
+    "buttonCancel": 1,
+    "buttonConfirm": 0,
+    "buttonL1": 4,
+    "buttonR1": 5,
+    "buttonL2": 6,
+    "buttonR2": 7,
+    "buttonL3": 10,
+    "buttonR3": 11,
+}
+let currentlyHeldGamepadKeybinds  = {
+    "dpadUp": false,
+    "dpadDown": false,
+    "dpadLeft": false,
+    "dpadRight": false,
+    "buttonOptions": false,
+    "buttonShare": false,
+    "buttonSquare": false,
+    "buttonTriangle": false,
+    "buttonCancel": false,
+    "buttonConfirm": false,
+    "buttonL1": false,
+    "buttonR1": false,
+    "buttonL2": false,
+    "buttonR2": false,
+    "buttonL3": false,
+    "buttonR3": false,
+}
+
 
 // Sort table rows
 function sortRows(key, asc = true, selectedModName = null) {
@@ -38,10 +76,12 @@ async function populateMetaData() {
     const mDataGamePath = document.getElementById('game-path');
     const mDataModCount = document.getElementById('mod-count');
     const mDataDMLVersion = document.getElementById('mod-loader-version');
+    const mDataTMMVersion = document.getElementById('tmm-version');
     const gameMetadata = await ipcRenderer.invoke('get-game-metadata');
     mDataGameVersion.innerText = `MM+: ${gameMetadata.gameVersion}`;
-    //mDataGamePath.innerText = gameMetadata.gamePath;
+    mDataGamePath.innerText = `Path: ${gameMetadata.gamePath}`;
     mDataModCount.innerText = `Mods: ${gameMetadata.modCount}`;
+    mDataTMMVersion.innerText = `TMM: ${gameMetadata.tmmVersion}`;
     mDataDMLVersion.innerText = `DML: ${gameMetadata.dmlVersion}`;
 }
 
@@ -141,6 +181,7 @@ function populateRows(mods, selectedModName = null) {
         const modNameCell = document.createElement('td');
         modNameCell.appendChild(document.createTextNode(modName.replace(/^"(.*)"$/, '$1')));
         modNameCell.setAttribute('title', mod.name.replace(/^"(.*)"$/, '$1'));
+        modNameCell.setAttribute('data-mod-name', modName.replace(/^"(.*)"$/, '$1'));
         row.appendChild(modNameCell);
 
         const enabledCell = document.createElement('td');
@@ -211,6 +252,121 @@ function populateRows(mods, selectedModName = null) {
     }
 }
 
+// Add a keydown event listener to the document
+document.addEventListener('keydown', (event) => {
+    // Check if the pressed key is an up or down arrow key
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+        // Find the currently selected row
+        const selectedRow = document.querySelector('tr.selected');
+
+        if (selectedRow) {
+            event.preventDefault();
+            if (event.key === 'ArrowUp') {
+                moveSelectedRow(true, false)
+            } else if (event.key === 'ArrowDown') {
+                moveSelectedRow(false, true);
+            }
+        }
+    } else if (event.key === 'Enter') {
+        toggleModStatus();
+    }
+});
+
+
+function handleGamepadInput() {
+    // Get the first connected gamepad
+    const gamepad = navigator.getGamepads()[0];
+
+    if (gamepad) {
+        // Define a deadzone for the analog stick
+        const deadzone = 0.5;
+
+        // Check if the analog stick is moved up or down or if the D-pad is pressed
+        const moveUp = gamepad.axes[1] < -deadzone || gamepad.buttons[gamepadKeybinds.dpadUp].pressed;
+        const moveDown = gamepad.axes[1] > deadzone || gamepad.buttons[gamepadKeybinds.dpadDown].pressed;
+
+        if (moveUp || moveDown) {
+            if (!gamepadHoldTimeout) {
+                // Move the selected row
+                moveSelectedRow(moveUp, moveDown);
+
+                // Set a timeout for the hold behavior
+                gamepadHoldTimeout = setTimeout(() => {
+                    gamepadHoldTimeout = setInterval(() => {
+                        moveSelectedRow(moveUp, moveDown);
+                    }, 100);
+                }, 500);
+            }
+        } else {
+            // Clear the hold timeout and interval if the gamepad is not being pressed
+            clearTimeout(gamepadHoldTimeout);
+            clearInterval(gamepadHoldTimeout);
+            gamepadHoldTimeout = null;
+        }
+
+
+        const aButtonPressed = gamepad.buttons[gamepadKeybinds.buttonConfirm].pressed;
+
+        if (aButtonPressed && !currentlyHeldGamepadKeybinds.buttonConfirm) {
+            currentlyHeldGamepadKeybinds.buttonConfirm = true;
+            toggleModStatus();
+
+
+
+        } else if (currentlyHeldGamepadKeybinds.buttonConfirm && !aButtonPressed) {
+            currentlyHeldGamepadKeybinds.buttonConfirm = false;
+        }
+
+    }
+
+    // Check for gamepad input again in the next animation frame
+    requestAnimationFrame(handleGamepadInput);
+}
+
+function moveSelectedRow(moveUp, moveDown) {
+    // Get the currently selected row
+    let selectedRow = document.querySelector('tr.selected');
+
+    // If there's no selected row, select the first row
+    if (!selectedRow) {
+        selectedRow = document.querySelector('tr.mod-row');
+        if (selectedRow) {
+            selectedRow.classList.add('selected');
+        }
+    }
+
+    if (selectedRow) {
+        let newRow;
+
+        // Find the previous or next row based on the analog stick movement or D-pad buttons
+        if (moveUp) {
+            newRow = selectedRow.previousElementSibling;
+        } else if (moveDown) {
+            newRow = selectedRow.nextElementSibling;
+        }
+
+        // If there's a previous or next row, make it the new selected row
+        if (newRow) {
+            selectedRow.classList.remove('selected');
+            newRow.classList.add('selected');
+            gamepadShowModInfo();
+            // Adjust the scroll position of the scrollable container
+            const scrollableContainer = document.querySelector('.modslist');
+            if (scrollableContainer) {
+                const newRowRect = newRow.getBoundingClientRect();
+                const containerRect = scrollableContainer.getBoundingClientRect();
+
+                if (newRowRect.top < containerRect.top) {
+                    scrollableContainer.scrollTop -= containerRect.top - newRowRect.top;
+                } else if (newRowRect.bottom > containerRect.bottom) {
+                    scrollableContainer.scrollTop += newRowRect.bottom - containerRect.bottom;
+                }
+            }
+        }
+    }
+}
+
+
 
 // Function to get profiles
 async function getProfiles() {
@@ -241,7 +397,8 @@ async function getProfiles() {
 
     // Set the initial active profile
     activeProfile = await ipcRenderer.invoke('get-active-profile');
-    profileSelector.value = activeProfile;
+    //popupAlert('Active profile: ' + activeProfile.name)
+    profileSelector.value = activeProfile.name;
 }
 
 // Function to update mod priority
@@ -258,14 +415,17 @@ async function updateModPriority(increase) {
 
 // Update the DOMContentLoaded event listener
 window.addEventListener('DOMContentLoaded', async () => {
+
     await getProfiles();
     await getMods();
     sortRows('priority', true);
 
     // Add event listeners for the buttons
     const launchGameButton = document.getElementById('launch-game');
-    const openSettingsButton = document.getElementById('open-settings');
+    const openSettingsButton = document.getElementById('tmm-settings');
     const openGamebananaButton = document.getElementById('open-gamebanana');
+    const installArchiveButton = document.getElementById('install-archive');
+    const installGithubButton = document.getElementById('install-github');
     const reloadModsButton = document.getElementById('reload-mods');
     const searchInput = document.getElementById('search-input');
     const openModFolderButton = document.getElementById('open-folder');
@@ -274,6 +434,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     const createProfileButton = document.getElementById('create-profile');
     const deleteProfileButton = document.getElementById('delete-profile');
     const renameProfileButton = document.getElementById('rename-profile');
+    const dmlSettingsButton = document.getElementById('dml-settings');
+    const controllerSettingsButton = document.getElementById('controller-settings');
+    const divaButton = document.getElementById('diva-settings');
+    const openDevConsoleButton = document.getElementById('open-dev-console');
+
 
 
 
@@ -297,8 +462,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     });
     deleteProfileButton.addEventListener('click', async () => {
         if (await popupConfirm('Are you sure you want to delete this profile?')) {
-            ipcRenderer.invoke('delete-profile', activeProfile).then(async () => {
+            ipcRenderer.invoke('delete-profile', activeProfile.name).then(async () => {
                 await getProfiles();
+                const profileSelector = document.getElementById('profile-selector');
             });
         }
 
@@ -306,8 +472,12 @@ window.addEventListener('DOMContentLoaded', async () => {
     renameProfileButton.addEventListener('click', async () => {
         const newProfileName = await popupPrompt('Enter a new name for the profile', activeProfile);
         if (newProfileName && newProfileName.length > 0) {
-            ipcRenderer.invoke('rename-profile', activeProfile,).then(async () => {
+            ipcRenderer.invoke('rename-profile', activeProfile.name, newProfileName).then(async () => {
                 await getProfiles();
+            }).then(async () => {
+                const profileSelector = document.getElementById('profile-selector');
+                currentProfiles = await ipcRenderer.invoke('get-profiles');
+                profileSelector.value = newProfileName;
             });
         } else {
             popupAlert('Please enter a name for the profile');
@@ -325,16 +495,72 @@ window.addEventListener('DOMContentLoaded', async () => {
         ipcRenderer.invoke('open-gamebanana');
     });
 
+    installArchiveButton.addEventListener('click', async () => {
+        // TODO - Add archive installation
+        await popupAlert('Archive installation coming soon!')
+    });
+
+    installGithubButton.addEventListener('click', async () => {
+        // TODO - Add github installation
+        await popupAlert('Github installation coming soon!')
+    });
+
+    dmlSettingsButton.addEventListener('click', async () => {
+        // TODO - Add dml settings
+        await popupAlert('DML settings coming soon!')
+    });
+
+    controllerSettingsButton.addEventListener('click', async () => {
+        // TODO - Add controller settings
+        await popupAlert('Controller settings coming soon!')
+    });
+
+    divaButton.addEventListener('click', async () => {
+        // TODO - Add diva settings
+        await popupAlert('DIVA settings coming soon!')
+    });
+
+    openDevConsoleButton.addEventListener('click', async () => {
+       ipcRenderer.invoke('open-dev-console');
+    });
+
+
+
+
+
+
+
     ipcRenderer.invoke('update-mod-priorities');
-
-
-
-
-
-
-
+    requestAnimationFrame(handleGamepadInput);
 
 });
+
+// Toggles selected mod for gamepad and keyboard input
+function toggleModStatus() {
+    const selectedRow = document.querySelector('tr.selected');
+    if (selectedRow) {
+        const checkbox = selectedRow.querySelector('input[type="checkbox"]');
+        if (checkbox) {
+            checkbox.checked = !checkbox.checked;
+            const modName = selectedRow.querySelector('td[title]').getAttribute('data-mod-name');
+
+            ipcRenderer.invoke('set-mod-status', modName, checkbox.checked);
+        }
+    }
+}
+
+async function gamepadShowModInfo() {
+    const selectedRows = document.querySelectorAll('tr.selected');
+    if (selectedRows.length === 1) {
+        const modName = selectedRows[0].querySelector('td[title]').getAttribute('data-mod-name');
+        const mod = await ipcRenderer.invoke('get-mod-value', modName);
+        if (mod) {
+            showModInfo(mod);
+        }
+    }
+
+}
+
 
 
 // Call the getMods function when the page has loaded
