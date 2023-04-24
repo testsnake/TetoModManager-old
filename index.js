@@ -14,14 +14,17 @@ const { parse: parseDate, isValid } = require('date-fns');
 const { extractFull } = require('node-7z');
 const sevenBin = require('7zip-bin');
 const disk = require('diskusage');
+const { readKey } = require('registry-js');
 
 // Initialize instances
 const userData = new Store({ name: 'TMM-config' });
+
 
 // Global variables
 let gameVersion;
 let win;
 let devMode;
+
 
 // Default profile structure
 const defaultProfile = {
@@ -95,21 +98,43 @@ ipcMain.handle('create-profile', async (event, profileName) => {
 });
 
 ipcMain.handle('rename-profile', (event, oldProfileName, newProfileName) => {
-    if (profiles[oldProfileName] && !profiles[newProfileName]) {
-        profiles[newProfileName] = { ...profiles[oldProfileName], name: newProfileName };
-        delete profiles[oldProfileName];
-        userData.set('profiles', profiles);
-        if (currentProfileName === oldProfileName) {
-            currentProfileName = newProfileName;
-            userData.set('currentProfile', currentProfileName);
+    try {
+        if (newProfileName === undefined || newProfileName === '' || newProfileName === null) {
+            if (win) {
+                win.webContents.send('alert-user', `Profile Name Error Code: 0021`);
+
+            }
+            return;
+        } else if (oldProfileName === undefined || oldProfileName === '' || oldProfileName === null) {
+            if (win) {
+                win.webContents.send('alert-user', `Profile Name Error Code: 0022`);
+            }
+            return;
         }
-    } else {
-        console.error(`Error renaming profile: ${oldProfileName} to ${newProfileName}`);
+        if (profiles[oldProfileName] && !profiles[newProfileName]) {
+            profiles[newProfileName] = {...profiles[oldProfileName], name: newProfileName};
+            delete profiles[oldProfileName];
+            userData.set('profiles', profiles);
+            const currentProfileName = userData.get('currentProfile');
+            if (currentProfileName === oldProfileName) {
+                userData.set('currentProfile', newProfileName);
+            }
+        } else {
+            console.error(`Error renaming profile: ${oldProfileName} to ${newProfileName}`);
+            if (win) {
+                win.webContents.send('alert-user', `Error renaming profile: ${oldProfileName} to ${newProfileName} Error Code: 0023`);
+            }
+        }
+    } catch (err) {
+        console.error(`Error renaming profile: ${oldProfileName} to ${newProfileName}`, err);
+        if (win) {
+            win.webContents.send('alert-user', `Error renaming profile: ${oldProfileName} to ${newProfileName}`);
+        }
     }
 });
 
 ipcMain.handle('delete-profile', (event, profileName) => {
-    const profiles = userData.get('profiles');
+    profiles = userData.get('profiles');
     if (profiles) {
         const keyCount = Object.keys(profiles).length;
         if (profiles[profileName] && profileName !== 'Default' && keyCount > 1) {
@@ -215,7 +240,15 @@ ipcMain.handle('get-profiles', () => {
 });
 
 ipcMain.handle('get-active-profile', () => {
-    return currentProfileName;
+    if (currentProfile) {
+        return currentProfile;
+    } else {
+        if (win) {
+            win.webContents.send('alert-user', 'No active profile found Error Code: 0020');
+        }
+        console.error('No active profile found Error Code: 0020');
+        return profiles[0];
+    }
 });
 
 ipcMain.handle('get-console-value', async () => {
@@ -271,13 +304,13 @@ ipcMain.handle('get-game-metadata', async () => {
     if (gameVersion === undefined) {
         gameVersion = await getGameVersion()
     }
-    // const gamePath = await getGamePath()
+    const gamePath = await getGamePath()
     const modCount = Object.keys(userData.get('game.mods')).length;
     const modloaderVersion = await getModLoaderVersion();
     const tmmVersion = app.getVersion();
     return {
         "gameVersion": gameVersion,
-        // "gamePath": gamePath,
+        "gamePath": gamePath,
         "modCount": modCount,
         "dmlVersion": modloaderVersion,
         "tmmVersion": tmmVersion
@@ -352,8 +385,52 @@ async function getGamePathFromUser() {
             resolve(null);
         }
     });
+
 }
 
+async function getSteamFolder() {
+    let steamFolder = '';
+
+    switch (process.platform) {
+        case 'win32':
+            try {
+                const registryResult = readKey(HKEY.HKEY_LOCAL_MACHINE, 'SOFTWARE\\WOW6432Node\\Valve\\Steam');
+                const installPath = registryResult.values.find((value) => value.name === 'InstallPath');
+
+                if (installPath) {
+                    steamFolder = installPath.data;
+                } else {
+                    steamFolder = 'C:\\Program Files (x86)\\Steam';
+                }
+            } catch (err) {
+                console.error('Error reading registry:', err);
+                steamFolder = 'C:\\Program Files (x86)\\Steam';
+            }
+            break;
+        case 'darwin':
+            steamFolder = path.join(process.env.HOME, 'Library/Application Support/Steam');
+            break;
+        case 'linux':
+            const configFile = path.join(process.env.HOME, '.steam/steam/config/config.vdf');
+            if (fs.existsSync(configFile)) {
+                const configData = fs.readFileSync(configFile, 'utf-8');
+                const basePathMatch = configData.match(/"BaseInstallFolder_1"\s+"(.+?)"/);
+                if (basePathMatch && basePathMatch[1]) {
+                    steamFolder = basePathMatch[1];
+                } else {
+                    steamFolder = path.join(process.env.HOME, '.local/share/Steam');
+                }
+            } else {
+                steamFolder = path.join(process.env.HOME, '.local/share/Steam');
+            }
+            break;
+        default:
+            console.error(`Unsupported platform: ${process.platform}`);
+            break;
+    }
+
+    return steamFolder;
+}
 
 async function getGamePath() {
     try {
@@ -375,22 +452,7 @@ async function getGamePath() {
         const appId = 1761390;
         consoleM(`App ID: ${appId}`);
         // Set Steam installation paths for different platforms
-        let steamFolder;
-
-        switch (process.platform) {
-            case 'win32':
-                steamFolder = 'C:\\Program Files (x86)\\Steam';
-                break;
-            case 'darwin':
-                steamFolder = path.join(process.env.HOME, 'Library/Application Support/Steam');
-                break;
-            case 'linux':
-                steamFolder = path.join(process.env.HOME, '.local/share/Steam');
-                break;
-            default:
-                console.error(`Unsupported platform: ${process.platform}`);
-                break;
-        }
+        let steamFolder = await getSteamFolder();
 
         consoleM(`Steam folder for ${process.platform}: ${steamFolder}`);
 
@@ -423,18 +485,33 @@ async function getGamePath() {
                     const manifestContent = fs.readFileSync(manifestPath, 'utf-8');
                     const installDirMatch = manifestContent.match(/"installdir"\s+"(.+?)"/);
 
-                    if (installDirMatch && installDirMatch[1]) {
+                    if (installDirMatch && installDirMatch[1] && fs.existsSync(path.join(steamAppsFolder, 'common', installDirMatch[1], 'DivaMegaMix.exe'))) {
                         const installDir = path.join(steamAppsFolder, 'common', installDirMatch[1]);
                         userData.set(`steamGame.${appId}.installDir`, installDir);
                         return installDir;
                     }
                 }
             }
+
         } catch (error) {
             console.error('Error while searching for the game path:', error);
             consoleM(`Could not find the game path in ${steamAppsFolder}.`)
         }
-        return await getGamePathFromUser();
+        if (win) {
+            win.webContents.send('alert-user', `Could not find the game path in ${steamAppsFolder}.`);
+        }
+        const userPath = path.join(await getGamePathFromUser(), 'DivaMegaMix.exe')
+
+        if (fs.existsSync(userPath)) {
+            consoleM('Using user game path:', userPath);
+            userData.set(`steamGame.${appId}.installDir`, userPath);
+            return userPath;
+        } else {
+            consoleM('User game path is invalid:', userPath);
+            if (win) {
+                win.webContents.send('alert-user', `The game path [${userPath} you entered is invalid. Please restart TMM and try again.`);
+            }
+        }
         // If the function didn't return earlier, call getGamePathFromUser()
     } catch (error) {
         consoleM(`Error while getting the game path: ${error}`);

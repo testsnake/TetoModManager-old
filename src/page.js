@@ -79,7 +79,7 @@ async function populateMetaData() {
     const mDataTMMVersion = document.getElementById('tmm-version');
     const gameMetadata = await ipcRenderer.invoke('get-game-metadata');
     mDataGameVersion.innerText = `MM+: ${gameMetadata.gameVersion}`;
-    //mDataGamePath.innerText = gameMetadata.gamePath;
+    mDataGamePath.innerText = `Path: ${gameMetadata.gamePath}`;
     mDataModCount.innerText = `Mods: ${gameMetadata.modCount}`;
     mDataTMMVersion.innerText = `TMM: ${gameMetadata.tmmVersion}`;
     mDataDMLVersion.innerText = `DML: ${gameMetadata.dmlVersion}`;
@@ -397,7 +397,8 @@ async function getProfiles() {
 
     // Set the initial active profile
     activeProfile = await ipcRenderer.invoke('get-active-profile');
-    profileSelector.value = activeProfile;
+    //popupAlert('Active profile: ' + activeProfile.name)
+    profileSelector.value = activeProfile.name;
 }
 
 // Function to update mod priority
@@ -461,8 +462,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     });
     deleteProfileButton.addEventListener('click', async () => {
         if (await popupConfirm('Are you sure you want to delete this profile?')) {
-            ipcRenderer.invoke('delete-profile', activeProfile).then(async () => {
+            ipcRenderer.invoke('delete-profile', activeProfile.name).then(async () => {
                 await getProfiles();
+                const profileSelector = document.getElementById('profile-selector');
             });
         }
 
@@ -470,8 +472,12 @@ window.addEventListener('DOMContentLoaded', async () => {
     renameProfileButton.addEventListener('click', async () => {
         const newProfileName = await popupPrompt('Enter a new name for the profile', activeProfile);
         if (newProfileName && newProfileName.length > 0) {
-            ipcRenderer.invoke('rename-profile', activeProfile,).then(async () => {
+            ipcRenderer.invoke('rename-profile', activeProfile.name, newProfileName).then(async () => {
                 await getProfiles();
+            }).then(async () => {
+                const profileSelector = document.getElementById('profile-selector');
+                currentProfiles = await ipcRenderer.invoke('get-profiles');
+                profileSelector.value = newProfileName;
             });
         } else {
             popupAlert('Please enter a name for the profile');
