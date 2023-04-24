@@ -34,6 +34,10 @@
     --button-warning-hover-bg-color: #d39e00;
     --button-warning-text-color: #212529;
 
+    --search-input-bg-color: #575972;
+    --search-input-text-color: #fff;
+    --search-input-placeholder-color: #ccc;
+
     --link-color: #a4c0ff;
     --mod-info-bar-width: 300px;
 }
@@ -198,6 +202,21 @@ body {
     height: var(--bottom-bar-height);
     min-height: var(--bottom-bar-height);
     min-width: 100vw;
+}
+
+#search-input {
+    flex-grow: 1;
+    height: 100%;
+    border: none;
+    background-color: var(--search-input-bg-color);
+    color: var(--search-input-text-color);
+    padding: 0 10px;
+    font-size: 16px;
+    outline: none;
+}
+
+#search-input::placeholder {
+    color: var(--search-input-placeholder-color);
 }
 
 tr.mod-row:hover {
