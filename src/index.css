@@ -153,10 +153,24 @@ body {
     min-width: 100vw;
 }
 
+#permanent-options {
+    display: flex;
+    width: auto;
+    flex-direction: row;
+}
+
+#page-options {
+    display: flex;
+    flex-grow: 1;
+    width: auto;
+    flex-direction: row;
+}
+
 .dropdown {
     position: relative;
     display: inline-block;
 }
+
 
 .dropdown-content {
     display: none;
@@ -257,40 +271,47 @@ tr.selected:hover {
     color: var(--info-text-color);
 }
 
-#dialog-overlay {
+.dialog-active, .webpage-active {
+    transform: translate(-50%, -50%) scale(1) !important;
+    opacity: 1 !important;
+}
+
+#dialog-overlay, #webpage-overlay {
     display: none;
     position: fixed;
     top: var(--title-bar-height);
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(1px);
     z-index: 100;
+    transition: background-color 0.3s, backdrop-filter 0.3s;
 }
 
-#dialog-box {
+#dialog-box, #webpage-box {
     display: none;
     position: fixed;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
-    width: var(--dialog-box-width);
+    transform: translate(-50%, -60%) scale(0.9);
+    opacity: 0;
     background-color: var(--dialog-bg-color);
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
     padding: 20px;
     z-index: 101;
+    transition: transform 0.3s, opacity 0.3s;
 }
 
-#dialog-message {
+#dialog-message, #dialog-input {
     margin-bottom: 20px;
 }
 
 #dialog-input {
     width: 100%;
-    margin-bottom: 20px;
 }
 
-#dialog-buttons {
+#dialog-buttons, #webpage-iframe {
     display: flex;
     justify-content: flex-end;
 }
@@ -306,6 +327,23 @@ tr.selected:hover {
 #dialog-buttons button:hover {
     background-color: var(--dialog-button-hover-bg-color);
 }
+
+#webpage-box {
+    width: 80%;
+    height: 80%;
+}
+
+#webpage-iframe {
+    display: none;
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+
+
+
+
 
 .mod-image img {
     width: 100%;

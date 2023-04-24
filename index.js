@@ -251,15 +251,20 @@ ipcMain.handle('get-active-profile', () => {
     }
 });
 
-ipcMain.handle('get-console-value', async () => {
-    const gamePath = await getGamePath();
-    return readGameConfigValue(gamePath, 'console');
+ipcMain.handle('config-get-dml-config-value', async () => {
+    consoleM('Getting config.toml data');
+    return await getConfigTomlData();
 });
 
-ipcMain.handle('set-console-value', async (event, newValue) => {
-    const gamePath = await getGamePath();
-    await setGameConfigValue(gamePath, 'console', newValue);
+ipcMain.handle('config-set-dml-config-value', async (event, key, value) => {
+    consoleM(`Setting config.toml value ${key} to ${value}`);
+    await setConfigTomlData(key, value);
 });
+
+ipcMain.handle('get-dml-latest-version', async () => {
+    return await fetchLatestDMLRelease();
+});
+
 
 ipcMain.handle('get-mods-value', async () => {
     const gamePath = await getGamePath();
@@ -267,8 +272,7 @@ ipcMain.handle('get-mods-value', async () => {
 });
 
 ipcMain.handle('get-mod-value', async (event, modName) => {
-    const modData = userData.get(`game.mods.${modName}`);
-    return modData;
+    return userData.get(`game.mods.${modName}`);
 
 });
 
@@ -307,13 +311,16 @@ ipcMain.handle('get-game-metadata', async () => {
     const gamePath = await getGamePath()
     const modCount = Object.keys(userData.get('game.mods')).length;
     const modloaderVersion = await getModLoaderVersion();
+    const dmlPath = path.join(gamePath, 'config.toml');
+    const modloaderData = parse(fs.readFileSync(dmlPath, 'utf-8'));
     const tmmVersion = app.getVersion();
     return {
         "gameVersion": gameVersion,
         "gamePath": gamePath,
         "modCount": modCount,
         "dmlVersion": modloaderVersion,
-        "tmmVersion": tmmVersion
+        "tmmVersion": tmmVersion,
+        "modloaderData": modloaderData
     }
 });
 
@@ -839,6 +846,39 @@ function consoleM(message) {
     }
 }
 
+async function getConfigTomlData() {
+    const gameDirPath = await getGamePath();
+    const modLoaderPath = path.join(gameDirPath, "config.toml");
+    const configData = await fs.promises.readFile(modLoaderPath, "utf-8");
+    return parse(configData);
+}
+
+async function setConfigTomlData(key, value) {
+    const currentConfigData = await getConfigTomlData();
+    currentConfigData[key] = value;
+    const gameDirPath = await getGamePath();
+    const modLoaderPath = path.join(gameDirPath, "config.toml");
+    const updatedConfigData = stringify(currentConfigData);
+    await fs.promises.writeFile(modLoaderPath, updatedConfigData);
+}
+
+async function fetchLatestDMLRelease() {
+    const url = 'https://api.github.com/repos/blueskythlikesclouds/DivaModLoader/releases/latest';
+
+    try {
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('There was a problem with the fetch operation:', error);
+        return null;
+    }
+}
 
 async function unzipFile(file, destination) {
     try {
