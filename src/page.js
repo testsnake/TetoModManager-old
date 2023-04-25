@@ -6,6 +6,7 @@ let tbody;
 let activeProfile;
 let currentProfiles;
 let currentPage;
+let currentPageName;
 let gameMetadata;
 let gamepadHoldTimeout;
 let gamepadKeybinds = {
@@ -46,8 +47,7 @@ let currentlyHeldGamepadKeybinds  = {
 }
 
 
-// Sort table rows
-
+const eventListeners = {};
 
 async function populateMetaData() {
     const mDataGameVersion = document.getElementById('game-version');
@@ -65,11 +65,7 @@ async function populateMetaData() {
 }
 
 
-window.addEventListener('DOMContentLoaded', async () => {
-    loadPage(modListPage);
-    populateMetaData();
-
-
+function globalEventListeners() {
     // Add event listeners for the buttons
     const launchGameButton = document.getElementById('launch-game');
     const openSettingsButton = document.getElementById('tmm-settings');
@@ -80,53 +76,42 @@ window.addEventListener('DOMContentLoaded', async () => {
     const controllerSettingsButton = document.getElementById('controller-settings');
     const divaButton = document.getElementById('diva-settings');
     const openDevConsoleButton = document.getElementById('open-dev-console');
+    const openModFolderButton = document.getElementById('open-folder');
 
-
-
-
-    launchGameButton.addEventListener('click', launchGame);
-
-
-    openSettingsButton.addEventListener('click', () => {
-        // TODO - Add settings
-        loadPage(tmmSettingsPage);
-    });
-
-    openGamebananaButton.addEventListener('click', async () => {
-        // TODO - Add gamebanana integration
-        await popupAlert('Gamebanana integration coming soon!')
+    addPageEventListener(launchGameButton, 'click', launchGame, undefined, 'global');
+    addPageEventListener(openSettingsButton, 'click', () => loadPage(tmmSettingsPage, 'tmmSettingsPage'), undefined, 'global');
+    addPageEventListener(openGamebananaButton, 'click', async () => {
+        await popupAlert('Gamebanana integration coming soon!');
         ipcRenderer.invoke('open-gamebanana');
-    });
+    }, undefined, 'global');
+    addPageEventListener(installArchiveButton, 'click', () => {
+        popupAlert('Installation via Archive Coming Soon')
+    }, undefined, 'global');
+    addPageEventListener(installGithubButton, 'click', () => {
+        popupAlert('Installation via Github Coming Soon')
+    }, undefined, 'global');
+    addPageEventListener(dmlSettingsButton, 'click', () => {
+        loadPage(dmlSettingsPage, 'dmlSettingsPage')
+    }, undefined, 'global');
+    addPageEventListener(controllerSettingsButton, 'click', () => {
+        popupAlert('Controller Settings Coming Soon')
+    }, undefined, 'global');
+    addPageEventListener(divaButton, 'click', () => {
+        popupAlert('DIVA Settings Coming Soon')
+    }, undefined, 'global');
+    addPageEventListener(openDevConsoleButton, 'click', () => {
+        ipcRenderer.invoke('open-dev-console');
+    }, undefined, 'global');
+    addPageEventListener(openModFolderButton, 'click', openModFolder, undefined, 'global');
+}
 
-    installArchiveButton.addEventListener('click', async () => {
-        // TODO - Add archive installation
-        await popupAlert('Archive installation coming soon!')
-    });
-
-    installGithubButton.addEventListener('click', async () => {
-        // TODO - Add github installation
-        await popupAlert('Github installation coming soon!')
-    });
-
-    dmlSettingsButton.addEventListener('click', async () => {
-        // TODO - Add dml settings
-        loadPage(dmlSettingsPage)
-    });
-
-    controllerSettingsButton.addEventListener('click', async () => {
-        // TODO - Add controller settings
-        await popupAlert('Controller settings coming soon!')
-    });
-
-    divaButton.addEventListener('click', async () => {
-        // TODO - Add diva settings
-        await popupAlert('DIVA settings coming soon!')
-    });
-
-    openDevConsoleButton.addEventListener('click', async () => {
-       ipcRenderer.invoke('open-dev-console');
-    });
+// Call globalEventListeners() after DOMContentLoaded event
+window.addEventListener('DOMContentLoaded', async () => {
+    loadPage(modListPage, 'mainPage');
+    populateMetaData();
+    globalEventListeners();
 });
+
 
 function modListPage() {
     async function mainPageLoading() {
@@ -141,21 +126,19 @@ function modListPage() {
 
         const reloadModsButton = document.getElementById('reload-mods');
         const searchInput = document.getElementById('search-input');
-        const openModFolderButton = document.getElementById('open-folder');
+
         const increaseModPriorityButton = document.getElementById('increase-mod-priority');
         const decreaseModPriorityButton = document.getElementById('decrease-mod-priority');
         const createProfileButton = document.getElementById('create-profile');
         const deleteProfileButton = document.getElementById('delete-profile');
         const renameProfileButton = document.getElementById('rename-profile');
 
-        reloadModsButton.addEventListener('click', reloadMods);
-        openModFolderButton.addEventListener('click', openModFolder);
-        searchInput.addEventListener('input', () => {
-            searchMods(mods, searchInput.value);
-        });
-        increaseModPriorityButton.addEventListener('click', () => updateModPriority(true));
-        decreaseModPriorityButton.addEventListener('click', () => updateModPriority(false));
-        createProfileButton.addEventListener('click', async () => {
+        addPageEventListener(reloadModsButton, 'click', reloadMods, undefined, 'mainPage');
+
+        addPageEventListener(searchInput, 'input', () => searchMods(mods, searchInput.value), undefined, 'mainPage');
+        addPageEventListener(increaseModPriorityButton, 'click', () => updateModPriority(true), undefined, 'mainPage');
+        addPageEventListener(decreaseModPriorityButton, 'click', () => updateModPriority(false), undefined, 'mainPage');
+        addPageEventListener(createProfileButton, 'click', async () => {
             const newProfileName = await popupPrompt('Enter a name for the new profile');
             if (newProfileName && newProfileName.length > 0) {
                 ipcRenderer.invoke('create-profile', newProfileName).then(async () => {
@@ -164,17 +147,16 @@ function modListPage() {
             } else {
                 popupAlert('Please enter a name for the profile');
             }
-        });
-        deleteProfileButton.addEventListener('click', async () => {
+        }, undefined, 'mainPage');
+        addPageEventListener(deleteProfileButton, 'click', async () => {
             if (await popupConfirm('Are you sure you want to delete this profile?')) {
                 ipcRenderer.invoke('delete-profile', activeProfile.name).then(async () => {
                     await getProfiles();
                     const profileSelector = document.getElementById('profile-selector');
                 });
             }
-
-        });
-        renameProfileButton.addEventListener('click', async () => {
+        }, undefined, 'mainPage');
+        addPageEventListener(renameProfileButton, 'click', async () => {
             const newProfileName = await popupPrompt('Enter a new name for the profile', activeProfile);
             if (newProfileName && newProfileName.length > 0) {
                 ipcRenderer.invoke('rename-profile', activeProfile.name, newProfileName).then(async () => {
@@ -187,7 +169,8 @@ function modListPage() {
             } else {
                 popupAlert('Please enter a name for the profile');
             }
-        });
+        }, undefined, 'mainPage');
+
         ipcRenderer.invoke('update-mod-priorities');
     }
 
@@ -222,11 +205,11 @@ function modListPage() {
 
 
         // Set the active profile and update the mod list
-        profileSelector.addEventListener('change', async () => {
+        addPageEventListener(profileSelector, 'change', async () => {
             activeProfile = profileSelector.value;
             await ipcRenderer.invoke('set-active-profile', activeProfile);
             await reloadMods();
-        });
+        }, undefined, 'mainPage');
 
         // Set the initial active profile
         activeProfile = await ipcRenderer.invoke('get-active-profile');
@@ -328,25 +311,25 @@ function modListPage() {
         requestAnimationFrame(handleGamepadInput);
     }
 
-    document.addEventListener('keydown', (event) => {
-            // Check if the pressed key is an up or down arrow key
-            if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-                // Find the currently selected row
-                const selectedRow = document.querySelector('tr.selected');
+    addPageEventListener(document, 'keydown', (event) => {
+        // Check if the pressed key is an up or down arrow key
+        if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+            // Find the currently selected row
+            const selectedRow = document.querySelector('tr.selected');
 
-                if (selectedRow) {
-                    event.preventDefault();
-                    if (event.key === 'ArrowUp') {
-                        moveSelectedRow(true, false)
-                    } else if (event.key === 'ArrowDown') {
-                        moveSelectedRow(false, true);
-                    }
+            if (selectedRow) {
+                event.preventDefault();
+                if (event.key === 'ArrowUp') {
+                    moveSelectedRow(true, false)
+                } else if (event.key === 'ArrowDown') {
+                    moveSelectedRow(false, true);
                 }
-            } else if (event.key === 'Enter') {
-                toggleModStatus();
             }
+        } else if (event.key === 'Enter') {
+            toggleModStatus();
+        }
+    }, undefined, 'mainPage');
 
-    });
 
     function populateRows(mods, selectedModName = null) {
         tbody.innerHTML = '';
@@ -417,18 +400,19 @@ function modListPage() {
             }
             row.classList.add('mod-row');
 
-            row.addEventListener('click', () => {
+            addPageEventListener(row, 'click', () => {
                 const selectedRows = document.querySelectorAll('tr.selected');
                 selectedRows.forEach((selectedRow) => {
                     selectedRow.classList.remove('selected');
                 });
                 row.classList.add('selected');
                 showModInfo(mod);
-            });
+            }, undefined, 'mainPage');
 
-            checkbox.addEventListener('click', () => {
+            addPageEventListener(checkbox, 'click', () => {
                 ipcRenderer.invoke('set-mod-status', modName, checkbox.checked);
-            });
+            }, undefined, 'mainPage');
+
 
             tbody.appendChild(row);
         }
@@ -520,7 +504,7 @@ function modListPage() {
             header.style.cursor = 'pointer';
             let asc = true;
 
-            header.addEventListener('click', () => {
+            addPageEventListener(header, 'click', () => {
                 const sortKey = header.dataset.sortKey;
                 const selectedModElement = document.querySelector('tr.selected > td:nth-child(2)');
                 const selectedModName = selectedModElement ? selectedModElement.innerText : null;
@@ -542,7 +526,8 @@ function modListPage() {
 
                 // Mark the clicked header as sorted
                 header.setAttribute('data-sorted', 'true');
-            });
+            }, undefined, 'mainPage');
+
         });
 
         modsList.appendChild(table);
@@ -646,9 +631,10 @@ function dmlSettingsPage() {
         await getOptions('dmlOptions.html');
 
         const modsPage = document.getElementById('open-main');
-        modsPage.addEventListener('click', () => {
-            loadPage(modListPage);
-        });
+        addPageEventListener(modsPage, 'click', () => {
+            loadPage(modListPage, 'mainPage');
+        }, undefined, 'dmlSettingsPage');
+
 
 
         const currentDMLVersion = document.getElementById('current-dml-version');
@@ -684,7 +670,7 @@ function dmlSettingsPage() {
             installDMLButton.innerHTML = 'Update DML';
         }
 
-        installDMLButton.addEventListener('click', async () => {
+        addPageEventListener(installDMLButton, 'click', async () => {
             if (!dmlData.assets[0].browser_download_url) {
                 popupAlert('Error getting latest DML version Error: 0050');
                 return;
@@ -695,13 +681,10 @@ function dmlSettingsPage() {
                 await ipcRenderer.invoke('config-set-dml-config-value', 'version', `${dmlVersion}`);
                 await populateMetaData();
                 console.log(`DML ${dmlData.tag_name} has been installed.\n${JSON.stringify(gameMetadata)}`);
-                loadPage(dmlSettingsPage);
+                loadPage(dmlSettingsPage, 'dmlSettingsPage');
                 popupAlert(`DML ${dmlData.tag_name} has been installed.`);
             });
-
-
-        });
-
+        }, undefined, 'dmlSettingsPage');
 
         const dmlConfig = await ipcRenderer.invoke('config-get-dml-config-value');
         const dmlConsole = document.getElementById('dml-console');
@@ -710,9 +693,9 @@ function dmlSettingsPage() {
                 dmlConsole.checked = dmlConfig.console;
             }
         }
-        dmlConsole.addEventListener('change', () => {
+        addPageEventListener(dmlConsole, 'change', () => {
             ipcRenderer.invoke('config-set-dml-config-value', 'console', dmlConsole.checked);
-        });
+        }, undefined, 'dmlSettingsPage');
 
         const dmlEnabled = document.getElementById('dml-enabled');
         if (dmlConfig) {
@@ -720,9 +703,9 @@ function dmlSettingsPage() {
                 dmlEnabled.checked = dmlConfig.enabled;
             }
         }
-        dmlEnabled.addEventListener('change', () => {
+        addPageEventListener(dmlEnabled, 'change', () => {
             ipcRenderer.invoke('config-set-dml-config-value', 'enabled', dmlEnabled.checked);
-        });
+        }, undefined, 'dmlSettingsPage');
 
 
 
@@ -739,22 +722,22 @@ function tmmSettingsPage() {
         await getOptions('tmmOptions.html');
 
         const modsPage = document.getElementById('open-main');
-        modsPage.addEventListener('click', () => {
-            loadPage(modListPage);
-        });
+        addPageEventListener(modsPage, 'click', () => {
+            loadPage(modListPage, 'mainPage');
+        }, undefined, 'tmmSettingsPage');
 
 
 
         // Testing for TMM
         const downloadDMLTest = document.getElementById('test-download-dml');
-        downloadDMLTest.addEventListener('click', async () => {
+        addPageEventListener(downloadDMLTest, 'click', async () => {
             const zipTest = await ipcRenderer.invoke('download-file-to-diva', 'https://github.com/blueskythlikesclouds/DivaModLoader/releases/download/v0.0.10/DivaModLoader.7z', 'test');
             if (zipTest) {
                 popupAlert('Download and extract successful');
             } else {
                 popupAlert('Download and extract failed');
             }
-        });
+        }, undefined, 'tmmSettingsPage');
 
 
     }
@@ -823,10 +806,46 @@ ipcRenderer.on('debug-message', async (event, debugMessage) => {
 // Function to show the mod info in the mod info panel when selected
 
 
-function loadPage(callback) {
+
+function addPageEventListener(target, type, listener, options, page) {
+    console.log(`Adding event listener for ${type} on ${target} on page ${page}`)
+    if (!eventListeners[page]) {
+        eventListeners[page] = [];
+    }
+
+    // Remove any existing event listeners with the same target, type, listener, and page
+    eventListeners[page] = eventListeners[page].filter(({ target: oldTarget, type: oldType, listener: oldListener }) => {
+        if (oldTarget === target && oldType === type && oldListener === listener) {
+            target.removeEventListener(type, oldListener, options);
+            return false;
+        }
+        return true;
+    });
+
+    // Add the new event listener
+    target.addEventListener(type, listener, options);
+    eventListeners[page].push({ target, type, listener, options });
+}
+
+
+
+
+function removePageEventListeners(page) {
+    if (eventListeners[page]) {
+        eventListeners[page].forEach(({ target, type, listener, options }) => {
+            console.log(`Removing event listener for ${type} on ${target} on page ${page}`)
+            target.removeEventListener(type, listener, options);
+        });
+        eventListeners[page] = [];
+    }
+}
+
+
+function loadPage(callback, pageName) {
     // Unload the current page by removing all children from the specified elements
     const contentElement = document.getElementById('content');
     const pageOptionsElement = document.getElementById('page-options');
+
     while (contentElement.firstChild) {
         contentElement.removeChild(contentElement.firstChild);
     }
@@ -834,9 +853,20 @@ function loadPage(callback) {
         pageOptionsElement.removeChild(pageOptionsElement.firstChild);
     }
 
+    // Remove event listeners from the previous page
+    if (currentPage) {
+        removePageEventListeners(currentPage);
+    }
+
     // Load the new page by executing the callback function
     callback();
+
+    // Set the new currentPage
+    currentPage = pageName;
 }
+
+// The rest of the code remains the same
+
 
 
 
