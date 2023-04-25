@@ -804,10 +804,30 @@ ipcRenderer.on('get-path-from-user', async () => {
     ipcRenderer.send('returned-path-from-user', result);
 });
 
-// ipcRenderer.on('alert-user', async (event, alertMessage) => {
-//
-//     popupAlert(alertMessage);
-// });
+ipcRenderer.on('send-update-message', async (event, message) => {
+    const updateMessage = document.getElementById('latest-update');
+    const pathOfGame = document.getElementById('game-path')
+    let messageNode = document.createTextNode(message);
+    pathOfGame.setAttribute('class', 'game-path-hidden');
+    if (updateMessage.childNodes.length > 0) {
+        updateMessage.replaceChild(messageNode, updateMessage.childNodes[0]);
+    } else {
+        updateMessage.appendChild(messageNode);
+    }
+});
+
+
+ipcRenderer.on('kill-update-message', async (event) => {
+    const updateMessage = document.getElementById('latest-update');
+    const pathOfGame = document.getElementById('game-path')
+    pathOfGame.setAttribute('class', 'info-text');
+    updateMessage.innerHTML = '';
+});
+
+ipcRenderer.on('alert-user', async (event, alertMessage) => {
+
+    popupAlert(alertMessage);
+});
 
 ipcRenderer.on('debug-message', async (event, debugMessage) => {
     console.log(debugMessage);

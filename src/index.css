@@ -34,6 +34,8 @@
     --button-warning-hover-bg-color: #d39e00;
     --button-warning-text-color: #212529;
 
+    --background-color: #191825;
+
     --search-input-bg-color: #575972;
     --search-input-text-color: #fff;
     --search-input-placeholder-color: #ccc;
@@ -226,10 +228,32 @@ body {
 }
 
 #bottombar {
+    position: relative;
     display: flex;
     height: var(--bottom-bar-height);
     min-height: var(--bottom-bar-height);
     min-width: 100vw;
+    font-family: monospace;
+}
+
+#bottombar-left-side {
+    display: flex;
+    flex-direction: row;
+    flex-grow: 1;
+    justify-content: flex-start;
+    max-height: var(--bottom-bar-height);
+}
+
+#bottombar-right-side {
+    position: absolute;
+    right: 5px;
+    display: flex;
+    flex-direction: row;
+    max-height: var(--bottom-bar-height);
+    z-index: 1;
+    background-color: var(--background-color);
+    padding-left: 25px;
+    border-left: #191825;
 }
 
 #search-input {
@@ -266,6 +290,10 @@ tr.selected:hover {
     font-weight: bold;
     background-color: var(--selected-row-hover-bg-color);
     transition: background-color 0.1s linear;
+}
+
+.game-path-hidden {
+    display: none;
 }
 
 .info-text {

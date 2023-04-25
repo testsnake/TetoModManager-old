@@ -24,6 +24,10 @@ let gameVersion;
 let win;
 let devMode;
 let downloadList = new Map();
+let updateTimeout = null;
+let spinnerInterval = null;
+const spinnerFrames = ['-', '\\', '|', '/'];
+let currentFrame = 0;
 
 
 // Default profile structure
@@ -936,15 +940,18 @@ async function downloadAndUnzip(url, destination, shouldDeleteSourceFile = true)
         const fileName = path.basename(url);
         const tempFilePath = path.join(destination, fileName);
 
+
+        appendToUpdateLogger(`Downloading ${fileName} 0%`);
         // Download the file and track progress
         const response = await axios.get(url, {
             responseType: 'stream',
             onDownloadProgress: (progress) => {
                 const percentage = Math.round((progress.loaded / progress.total) * 100);
-                sendPercentage(percentage);
+                sendPercentage(percentage, `Downloading ${fileName}`);
                 downloadList.set(url, percentage);
             },
         });
+
 
         // Automatically add the download to the list with initial progress 0
         if (!downloadList.has(url)) {
@@ -956,6 +963,8 @@ async function downloadAndUnzip(url, destination, shouldDeleteSourceFile = true)
             throw new Error(`Failed to download file. Status code: ${response.status}`);
         }
 
+
+
         // Save the downloaded file to disk
         const writer = fs.createWriteStream(tempFilePath);
         response.data.pipe(writer);
@@ -965,6 +974,7 @@ async function downloadAndUnzip(url, destination, shouldDeleteSourceFile = true)
             writer.on('error', reject);
         });
         consoleM(`Downloaded ${url} to ${tempFilePath}`);
+        appendToUpdateLogger(`Downloading ${fileName} 100%`);
 
         let unzipResult = { complete: false, path: url, error: 'Could not unzip file' };
         consoleM(`Waiting for file to exist: ${tempFilePath}...`)
@@ -996,6 +1006,9 @@ async function downloadAndUnzip(url, destination, shouldDeleteSourceFile = true)
         return unzipResult;
     } catch (error) {
         downloadList.delete(url);
+        if (win) {
+            win.webContents.send('alert-user', `Error downloading ${url}: ${error.message}`);
+        }
         return { complete: false, path: url, error: error.message };
     }
 }
@@ -1012,6 +1025,7 @@ function getDownloadProgress() {
 async function unzipFile(file, destination, shouldDeleteSourceFile = false) {
     try {
         consoleM(`Unzipping ${file} to ${destination}`);
+        const fileName = path.basename(file);
 
         // Wait for a short period to ensure the file is accessible
         await sleep(1000);
@@ -1023,10 +1037,15 @@ async function unzipFile(file, destination, shouldDeleteSourceFile = false) {
                 throw new Error('Not a file');
             }
             consoleM(`File found: ${file}`);
+
+
+            sendSpinner(`Unzipping ${fileName}`);
         } catch (error) {
             consoleM(`File not found: ${file}`);
             sendAlert(`File not found: ${file} Error 0041`);
+            killSpinner();
             return { complete: false, path: file, error: 'File not found' };
+
         }
 
         const unzipPromise = new Promise((resolve, reject) => {
@@ -1045,6 +1064,7 @@ async function unzipFile(file, destination, shouldDeleteSourceFile = false) {
         } catch (error) {
             consoleM(`Could not unzip file: ${file} Error: ${error.message}`);
             sendAlert(`Could not unzip file: ${file} Error 0042`);
+            killSpinner();
             return { complete: false, path: file, error: error.message };
         }
 
@@ -1052,11 +1072,13 @@ async function unzipFile(file, destination, shouldDeleteSourceFile = false) {
             consoleM(`Deleting file: ${file}`);
             fs.unlinkSync(file);
         }
-
+        killSpinner()
+        appendToUpdateLogger(`Unzipped ${fileName}`)
         return { complete: true, path: destination };
     } catch (error) {
         consoleM(`Could not unzip file: ${file} Error: ${error.message}`);
         sendAlert(`Could not unzip file: ${file} Error 0044`);
+        killSpinner();
         return { complete: false, path: file, error: error.message };
     }
 }
@@ -1067,16 +1089,50 @@ async function confirmUnZip(estimatedSize) {
     return true;
 }
 
-async function getPassword() {
-    // TODO - Get password from the renderer process
-    consoleM('Password: ');
-    return '';
+function sendPercentage(value, message) {
+    appendToUpdateLogger(`${message}: ${value}%`);
 }
 
-function sendPercentage(value) {
-    // TODO - Send percentage to the renderer process
-    consoleM(`Percentage: ${value}`);
+
+
+function appendToUpdateLogger(message) {
+    if (win) {
+        clearTimeout(updateTimeout);
+        win.webContents.send('send-update-message', `${message}`);
+        updateTimeout = setTimeout(() => {
+            killUpdateLogger();
+        }, 5000);
+    }
 }
+
+function killUpdateLogger() {
+    if (win) {
+        win.webContents.send('kill-update-message');
+    }
+}
+
+
+
+function sendSpinner(message) {
+    if (win) {
+        consoleM(`Spinner: ${message}`);
+        clearInterval(spinnerInterval);
+        const updateProgress = () => {
+            win.webContents.send('send-update-message', `${message} ${spinnerFrames[currentFrame]}`);
+            currentFrame = (currentFrame + 1) % spinnerFrames.length;
+        };
+        spinnerInterval = setInterval(updateProgress, 100);
+    }
+}
+
+function killSpinner() {
+    if (win) {
+        clearInterval(spinnerInterval);
+        killUpdateLogger();
+    }
+}
+
+
 
 async function sendAlert(alert) {
     consoleM(`Alert: ${alert}`);
