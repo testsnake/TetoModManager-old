@@ -11,9 +11,7 @@ const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const Store = require('electron-store');
 const { parse, stringify } = require('@iarna/toml');
 const { parse: parseDate, isValid } = require('date-fns');
-const { extractFull } = require('node-7z');
-const sevenBin = require('7zip-bin');
-const disk = require('diskusage');
+const zip = require('7zip-min');
 const { readKey } = require('registry-js');
 const axios = require('axios');
 
@@ -1011,7 +1009,7 @@ function getDownloadProgress() {
     return progressList;
 }
 
-async function unzipFile(file, destination, shouldDeleteSourceFile = false)  {
+async function unzipFile(file, destination, shouldDeleteSourceFile = false) {
     try {
         consoleM(`Unzipping ${file} to ${destination}`);
 
@@ -1029,78 +1027,36 @@ async function unzipFile(file, destination, shouldDeleteSourceFile = false)  {
             consoleM(`File not found: ${file}`);
             sendAlert(`File not found: ${file} Error 0041`);
             return { complete: false, path: file, error: 'File not found' };
-
         }
 
-        // Get the archive information
-        const archiveInfo = await extractFull(file, destination, {
-            $bin: sevenBin.path7za,
-            $progress: true,
-            list: true,
+        const unzipPromise = new Promise((resolve, reject) => {
+            zip.unpack(file, destination, (err) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve();
+                }
+            });
         });
 
-        consoleM(`Archive info: ${JSON.stringify(archiveInfo)}`);
-
-        const estimatedSize = archiveInfo.totalSize || 0;
-
-        // Check if there is enough space on the disk
-        const diskSpace = await disk.check(path.parse(destination).root);
-        if (diskSpace.available < estimatedSize) {
-            sendAlert(`Not enough disk space to unzip file: ${file} Error 0044`);
-            return { complete: false, path: file, error: 'Not enough disk space' };
-        }
-        consoleM(`Disk space: ${diskSpace.available} / ${estimatedSize}`)
-
-        // Confirm unzip
-        const confirm = await confirmUnZip(estimatedSize);
-        consoleM(`User confirmed unzip: ${confirm}`)
-        if (!confirm) {
-            return { complete: false, path: file, error: 'User did not confirm unzip' };
+        try {
+            await unzipPromise;
+            consoleM(`Unzipped file: ${file} to ${destination}`);
+        } catch (error) {
+            consoleM(`Could not unzip file: ${file} Error: ${error.message}`);
+            sendAlert(`Could not unzip file: ${file} Error 0042`);
+            return { complete: false, path: file, error: error.message };
         }
 
-
-        let password = '';
-        while (true) {
-            consoleM(`Unzipping file: ${file} with password: ${password}`)
-            try {
-                const extractor = extractFull(file, destination, {
-                    $bin: sevenBin.path7za,
-                    $progress: true,
-                    password: password,
-                });
-                // consoleM(`Extractor: ${JSON.stringify(extractor)}`)
-
-
-                extractor.on('progress', (progress) => {
-                    sendPercentage(Math.round(progress.percent));
-                });
-
-                await extractor;
-
-                // Delete the original zip file and return the result
-                await sleep(1000);
-                sendPercentage(100);
-                if (shouldDeleteSourceFile) {
-                    consoleM(`Deleting file: ${file}`);
-                    // fs.unlinkSync(file);
-                }
-                return { complete: true, path: destination, filesize: estimatedSize };
-            } catch (error) {
-                if (error.message.includes('Encrypted file')) {
-                    password = await getPassword();
-                    if (!password) {
-                        return { complete: false, path: file, error: 'No password provided' };
-                    }
-                } else {
-                    await sendAlert(`Could not unzip file: ${file} Error 0042`);
-                    await sendAlert(`Error: ${error.message}`);
-                    throw error;
-                }
-            }
+        if (shouldDeleteSourceFile) {
+            consoleM(`Deleting file: ${file}`);
+            fs.unlinkSync(file);
         }
+
+        return { complete: true, path: destination };
     } catch (error) {
-        await sendAlert(`Could not unzip file: ${file} Error 0044`);
-        await sendAlert(`Error: ${error.message}`);
+        consoleM(`Could not unzip file: ${file} Error: ${error.message}`);
+        sendAlert(`Could not unzip file: ${file} Error 0044`);
         return { complete: false, path: file, error: error.message };
     }
 }
