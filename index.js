@@ -11,10 +11,9 @@ const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const Store = require('electron-store');
 const { parse, stringify } = require('@iarna/toml');
 const { parse: parseDate, isValid } = require('date-fns');
-const { extractFull } = require('node-7z');
-const sevenBin = require('7zip-bin');
-const disk = require('diskusage');
+const zip = require('7zip-min');
 const { readKey } = require('registry-js');
+const axios = require('axios');
 
 // Initialize instances
 const userData = new Store({ name: 'TMM-config' });
@@ -24,6 +23,11 @@ const userData = new Store({ name: 'TMM-config' });
 let gameVersion;
 let win;
 let devMode;
+let downloadList = new Map();
+let updateTimeout = null;
+let spinnerInterval = null;
+const spinnerFrames = ['-', '\\', '|', '/'];
+let currentFrame = 0;
 
 
 // Default profile structure
@@ -251,15 +255,20 @@ ipcMain.handle('get-active-profile', () => {
     }
 });
 
-ipcMain.handle('get-console-value', async () => {
-    const gamePath = await getGamePath();
-    return readGameConfigValue(gamePath, 'console');
+ipcMain.handle('config-get-dml-config-value', async () => {
+    consoleM('Getting config.toml data');
+    return await getConfigTomlData();
 });
 
-ipcMain.handle('set-console-value', async (event, newValue) => {
-    const gamePath = await getGamePath();
-    await setGameConfigValue(gamePath, 'console', newValue);
+ipcMain.handle('config-set-dml-config-value', async (event, key, value) => {
+    consoleM(`Setting config.toml value ${key} to ${value}`);
+    await setConfigTomlData(key, value);
 });
+
+ipcMain.handle('get-dml-latest-version', async () => {
+    return await fetchLatestDMLRelease();
+});
+
 
 ipcMain.handle('get-mods-value', async () => {
     const gamePath = await getGamePath();
@@ -267,8 +276,7 @@ ipcMain.handle('get-mods-value', async () => {
 });
 
 ipcMain.handle('get-mod-value', async (event, modName) => {
-    const modData = userData.get(`game.mods.${modName}`);
-    return modData;
+    return userData.get(`game.mods.${modName}`);
 
 });
 
@@ -301,22 +309,71 @@ ipcMain.handle('open-gamebanana', () => {
 });
 
 ipcMain.handle('get-game-metadata', async () => {
-    if (gameVersion === undefined) {
-        gameVersion = await getGameVersion()
+    let gameVersionValue;
+    try {
+        if (gameVersion === undefined) {
+            gameVersion = await getGameVersion();
+        }
+        gameVersionValue = gameVersion;
+    } catch (error) {
+        gameVersionValue = "unknown";
     }
-    const gamePath = await getGamePath()
-    const modCount = Object.keys(userData.get('game.mods')).length;
-    const modloaderVersion = await getModLoaderVersion();
+
+    let gamePathValue;
+    try {
+        gamePathValue = await getGamePath();
+    } catch (error) {
+        gamePathValue = "unknown";
+    }
+
+    const modCountValue = Object.keys(userData.get('game.mods')).length;
+
+    let modloaderVersionValue;
+    try {
+        modloaderVersionValue = await getModLoaderVersion();
+    } catch (error) {
+        modloaderVersionValue = "not installed";
+    }
+
+    let modloaderDataValue;
+    try {
+        const dmlPath = path.join(gamePathValue, 'config.toml');
+        modloaderDataValue = parse(fs.readFileSync(dmlPath, 'utf-8'));
+    } catch (error) {
+        modloaderDataValue = "unknown";
+    }
+
     const tmmVersion = app.getVersion();
+
     return {
-        "gameVersion": gameVersion,
-        "gamePath": gamePath,
-        "modCount": modCount,
-        "dmlVersion": modloaderVersion,
-        "tmmVersion": tmmVersion
+        "gameVersion": gameVersionValue,
+        "gamePath": gamePathValue,
+        "modCount": modCountValue,
+        "dmlVersion": modloaderVersionValue,
+        "tmmVersion": tmmVersion,
+        "modloaderData": modloaderDataValue
     }
 });
 
+
+ipcMain.handle('download-file', async (event, url, path) => {
+    return await downloadFile(url, path);
+});
+
+ipcMain.handle('download-file-to-diva', async (event, url, pathDownload) => {
+    let gamePath
+    if (pathDownload.length > 0) {
+        gamePath = path.join(await getGamePath(), pathDownload);
+    } else {
+        gamePath = await getGamePath();
+    }
+    return await downloadAndUnzip(url, `${gamePath}`);
+});
+
+ipcMain.handle('install-local-file-to-diva', async (event, pathDownload) => {
+    let gamePath = path.join(await getGamePath(), 'mods');
+    return await unzipFile(pathDownload, `${gamePath}`);
+});
 
 
 const createWindow = () => {
@@ -839,80 +896,254 @@ function consoleM(message) {
     }
 }
 
-
-async function unzipFile(file, destination) {
+async function getConfigTomlData() {
+    const gameDirPath = await getGamePath();
+    const modLoaderPath = path.join(gameDirPath, "config.toml");
     try {
-        // Check if the file exists
-        if (!fs.existsSync(file)) {
-            throw new Error('File not found');
+        const configData = await fs.promises.readFile(modLoaderPath, "utf-8");
+        return parse(configData);
+    } catch (e) {
+        return {};getConfigTomlData
+    }
+}
+
+async function setConfigTomlData(key, value) {
+    const currentConfigData = await getConfigTomlData();
+    currentConfigData[key] = value;
+    const gameDirPath = await getGamePath();
+    const modLoaderPath = path.join(gameDirPath, "config.toml");
+    const updatedConfigData = stringify(currentConfigData);
+    await fs.promises.writeFile(modLoaderPath, updatedConfigData);
+}
+
+async function fetchLatestDMLRelease() {
+    const url = 'https://api.github.com/repos/blueskythlikesclouds/DivaModLoader/releases/latest';
+
+    try {
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
         }
 
-        // Get the archive information
-        const archiveInfo = await extractFull(file, destination, {
-            $bin: sevenBin.path7za,
-            $progress: true,
-            list: true,
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('There was a problem with the fetch operation:', error);
+        return null;
+    }
+}
+
+async function downloadAndUnzip(url, destination, shouldDeleteSourceFile = true) {
+    try {
+        consoleM(`Downloading ${url} to ${destination}`);
+        const fileName = path.basename(url);
+        const tempFilePath = path.join(destination, fileName);
+
+
+        appendToUpdateLogger(`Downloading ${fileName} 0%`);
+        // Download the file and track progress
+        const response = await axios.get(url, {
+            responseType: 'stream',
+            onDownloadProgress: (progress) => {
+                const percentage = Math.round((progress.loaded / progress.total) * 100);
+                sendPercentage(percentage, `Downloading ${fileName}`);
+                downloadList.set(url, percentage);
+            },
         });
 
-        const estimatedSize = archiveInfo.totalSize;
 
-        // Check if there is enough space on the disk
-        const diskSpace = await disk.check(path.parse(destination).root);
-        if (diskSpace.available < estimatedSize) {
-            throw new Error('Not enough disk space');
+        // Automatically add the download to the list with initial progress 0
+        if (!downloadList.has(url)) {
+            downloadList.set(url, 0);
         }
 
-        // Confirm unzip
-        const confirm = await confirmUnZip(estimatedSize);
-        if (!confirm) {
-            return { complete: false, path: file, error: 'User did not confirm unzip' };
+        // Handle connection issues and other errors
+        if (response.status !== 200) {
+            throw new Error(`Failed to download file. Status code: ${response.status}`);
         }
 
-        let password = '';
-        while (true) {
+
+
+        // Save the downloaded file to disk
+        const writer = fs.createWriteStream(tempFilePath);
+        response.data.pipe(writer);
+
+        await new Promise((resolve, reject) => {
+            writer.on('finish', resolve);
+            writer.on('error', reject);
+        });
+        consoleM(`Downloaded ${url} to ${tempFilePath}`);
+        appendToUpdateLogger(`Downloading ${fileName} 100%`);
+
+        let unzipResult = { complete: false, path: url, error: 'Could not unzip file' };
+        consoleM(`Waiting for file to exist: ${tempFilePath}...`)
+        await sleep(100);
+        consoleM(`Done waiting for file to exist: ${tempFilePath}...`)
+        try {
+            // Wait for the file to exist for up to 5 seconds
+            await Promise.race([
+                fs.promises.access(tempFilePath, fs.constants.R_OK),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('File not found after 5 seconds')), 5000)
+                ),
+            ]);
+
+            // Unzip the downloaded file
             try {
-                const extractor = extractFull(file, destination, {
-                    $bin: sevenBin.path7za,
-                    $progress: true,
-                    password: password,
-                });
-
-                // Send percentage done if possible
-                extractor.on('progress', (progress) => {
-                    sendPercentage(Math.round(progress.percent));
-                });
-
-                await extractor;
-
-                // Delete the original zip file and return the result
-                fs.unlinkSync(file);
-                return { complete: true, path: destination, filesize: estimatedSize };
+                unzipResult = await unzipFile(tempFilePath, destination, shouldDeleteSourceFile);
             } catch (error) {
-                if (error.message.includes('Encrypted file')) {
-                    password = await getPassword();
-                    if (!password) {
-                        return { complete: false, path: file, error: 'No password provided' };
-                    }
-                } else {
-                    throw error;
-                }
+                sendAlert(`Could not unzip file: ${tempFilePath} Error 0043`);
             }
+        } catch (error) {
+            consoleM(`Could not read file: ${tempFilePath}`);
+            sendAlert(`Could not read file: ${tempFilePath} Error 0040`);
         }
+
+        // Remove the downloaded file from the list
+        downloadList.delete(url);
+
+        return unzipResult;
     } catch (error) {
+        downloadList.delete(url);
+        if (win) {
+            win.webContents.send('alert-user', `Error downloading ${url}: ${error.message}`);
+        }
+        return { complete: false, path: url, error: error.message };
+    }
+}
+
+
+function getDownloadProgress() {
+    let progressList = [];
+    for (const [url, progress] of downloadList.entries()) {
+        progressList.push({ url, progress });
+    }
+    return progressList;
+}
+
+async function unzipFile(file, destination, shouldDeleteSourceFile = false) {
+    try {
+        consoleM(`Unzipping ${file} to ${destination}`);
+        const fileName = path.basename(file);
+
+        // Wait for a short period to ensure the file is accessible
+        await sleep(1000);
+
+        // Check if the file exists and is a file
+        try {
+            const fileStat = await fs.promises.stat(file);
+            if (!fileStat.isFile()) {
+                throw new Error('Not a file');
+            }
+            consoleM(`File found: ${file}`);
+
+
+            sendSpinner(`Unzipping ${fileName}`);
+        } catch (error) {
+            consoleM(`File not found: ${file}`);
+            sendAlert(`File not found: ${file} Error 0041`);
+            killSpinner();
+            return { complete: false, path: file, error: 'File not found' };
+
+        }
+
+        const unzipPromise = new Promise((resolve, reject) => {
+            zip.unpack(file, destination, (err) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve();
+                }
+            });
+        });
+
+        try {
+            await unzipPromise;
+            consoleM(`Unzipped file: ${file} to ${destination}`);
+        } catch (error) {
+            consoleM(`Could not unzip file: ${file} Error: ${error.message}`);
+            sendAlert(`Could not unzip file: ${file} Error 0042`);
+            killSpinner();
+            return { complete: false, path: file, error: error.message };
+        }
+
+        if (shouldDeleteSourceFile) {
+            consoleM(`Deleting file: ${file}`);
+            fs.unlinkSync(file);
+        }
+        killSpinner()
+        appendToUpdateLogger(`Unzipped ${fileName}`)
+        return { complete: true, path: destination };
+    } catch (error) {
+        consoleM(`Could not unzip file: ${file} Error: ${error.message}`);
+        sendAlert(`Could not unzip file: ${file} Error 0044`);
+        killSpinner();
         return { complete: false, path: file, error: error.message };
     }
 }
 
 async function confirmUnZip(estimatedSize) {
-    // Your implementation of confirmUnZip
+    // TODO - Send estimated size to the renderer process
+    consoleM(`Estimated size: ${estimatedSize}`);
+    return true;
 }
 
-async function getPassword() {
-    // Your implementation of getPassword
+function sendPercentage(value, message) {
+    appendToUpdateLogger(`${message}: ${value}%`);
 }
 
-function sendPercentage(value) {
-    // Your implementation of sendPercentage
+
+
+function appendToUpdateLogger(message) {
+    if (win) {
+        clearTimeout(updateTimeout);
+        win.webContents.send('send-update-message', `${message}`);
+        updateTimeout = setTimeout(() => {
+            killUpdateLogger();
+        }, 5000);
+    }
+}
+
+function killUpdateLogger() {
+    if (win) {
+        win.webContents.send('kill-update-message');
+    }
+}
+
+
+
+function sendSpinner(message) {
+    if (win) {
+        consoleM(`Spinner: ${message}`);
+        clearInterval(spinnerInterval);
+        const updateProgress = () => {
+            win.webContents.send('send-update-message', `${message} ${spinnerFrames[currentFrame]}`);
+            currentFrame = (currentFrame + 1) % spinnerFrames.length;
+        };
+        spinnerInterval = setInterval(updateProgress, 100);
+    }
+}
+
+function killSpinner() {
+    if (win) {
+        clearInterval(spinnerInterval);
+        killUpdateLogger();
+    }
+}
+
+
+
+async function sendAlert(alert) {
+    consoleM(`Alert: ${alert}`);
+    if (win) {
+        win.webContents.send('alert-user', `${alert}`);
+    }
+
+}
+
+async function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 app.on('web-contents-created', (event, contents) => {

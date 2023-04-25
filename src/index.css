@@ -34,6 +34,8 @@
     --button-warning-hover-bg-color: #d39e00;
     --button-warning-text-color: #212529;
 
+    --background-color: #191825;
+
     --search-input-bg-color: #575972;
     --search-input-text-color: #fff;
     --search-input-placeholder-color: #ccc;
@@ -153,10 +155,24 @@ body {
     min-width: 100vw;
 }
 
+#permanent-options {
+    display: flex;
+    width: auto;
+    flex-direction: row;
+}
+
+#page-options {
+    display: flex;
+    flex-grow: 1;
+    width: auto;
+    flex-direction: row;
+}
+
 .dropdown {
     position: relative;
     display: inline-block;
 }
+
 
 .dropdown-content {
     display: none;
@@ -207,12 +223,37 @@ body {
     background-color: var(--button-secondary-hover-bg-color);
 }
 
+#archive-file-selector {
+    display: none;
+}
 
 #bottombar {
+    position: relative;
     display: flex;
     height: var(--bottom-bar-height);
     min-height: var(--bottom-bar-height);
     min-width: 100vw;
+    font-family: monospace;
+}
+
+#bottombar-left-side {
+    display: flex;
+    flex-direction: row;
+    flex-grow: 1;
+    justify-content: flex-start;
+    max-height: var(--bottom-bar-height);
+}
+
+#bottombar-right-side {
+    position: absolute;
+    right: 5px;
+    display: flex;
+    flex-direction: row;
+    max-height: var(--bottom-bar-height);
+    z-index: 1;
+    background-color: var(--background-color);
+    padding-left: 25px;
+    border-left: #191825;
 }
 
 #search-input {
@@ -251,46 +292,57 @@ tr.selected:hover {
     transition: background-color 0.1s linear;
 }
 
+.game-path-hidden {
+    display: none;
+}
+
 .info-text {
     margin: 2px 0 0 5px;
     font-size: 14px;
     color: var(--info-text-color);
 }
 
-#dialog-overlay {
+.dialog-active, .webpage-active {
+    transform: translate(-50%, -50%) scale(1) !important;
+    opacity: 1 !important;
+}
+
+#dialog-overlay, #webpage-overlay {
     display: none;
     position: fixed;
     top: var(--title-bar-height);
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(1px);
     z-index: 100;
+    transition: background-color 0.3s, backdrop-filter 0.3s;
 }
 
-#dialog-box {
+#dialog-box, #webpage-box {
     display: none;
     position: fixed;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
-    width: var(--dialog-box-width);
+    transform: translate(-50%, -60%) scale(0.9);
+    opacity: 0;
     background-color: var(--dialog-bg-color);
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
     padding: 20px;
     z-index: 101;
+    transition: transform 0.3s, opacity 0.3s;
 }
 
-#dialog-message {
+#dialog-message, #dialog-input {
     margin-bottom: 20px;
 }
 
 #dialog-input {
     width: 100%;
-    margin-bottom: 20px;
 }
 
-#dialog-buttons {
+#dialog-buttons, #webpage-iframe {
     display: flex;
     justify-content: flex-end;
 }
@@ -306,6 +358,23 @@ tr.selected:hover {
 #dialog-buttons button:hover {
     background-color: var(--dialog-button-hover-bg-color);
 }
+
+#webpage-box {
+    width: 80%;
+    height: 80%;
+}
+
+#webpage-iframe {
+    display: none;
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+
+
+
+
 
 .mod-image img {
     width: 100%;

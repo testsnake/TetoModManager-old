@@ -17,67 +17,51 @@
 <!--            Chromium <span id="chrome-version"></span>,-->
 <!--            and Electron <span id="electron-version"></span>.-->
             <div id="topbar">
-                <button class="topbar-button" id="open-folder">Mods Folder</button>
-                <div class="dropdown">
-                    <button class="topbar-button dropbtn" id="install-menu">Install▾</button>
-                    <div class="dropdown-content">
-                        <button class="topbar-button topbar-button-dropdown" id="open-gamebanana">GameBanana</button>
-                        <button class="topbar-button topbar-button-dropdown" id="install-archive">Archive (Zip)</button>
-                        <button class="topbar-button topbar-button-dropdown" id="install-github">GitHub</button>
+                <div id="permanent-options">
+                    <button class="topbar-button" id="open-folder">Mods Folder</button>
+                    <div class="dropdown">
+                        <button class="topbar-button dropbtn" id="install-menu">Install▾</button>
+                        <div class="dropdown-content">
+                            <button class="topbar-button topbar-button-dropdown" id="open-gamebanana">GameBanana</button>
+                            <input type="file" id="archive-file-selector" multiple accept=".7z,.rar,.zip,.tar,.gz,.bz2,.xz,.lzma,.cab,.wim,.swm,.z,.taz,.tbz,.tbz2,.tgz,.tpz,.txz,.t7z,.001">
+                            <button class="topbar-button topbar-button-dropdown" id="install-archive">Archive (Zip)</button>
+                            <button class="topbar-button topbar-button-dropdown" id="install-github">GitHub</button>
+                        </div>
                     </div>
-                </div>
-                <div class="dropdown">
-                    <button class="topbar-button dropbtn" id="settings-menu">Settings▾</button>
-                    <div class="dropdown-content">
-                        <button class="topbar-button topbar-button-dropdown" id="dml-settings">DML</button>
-                        <button class="topbar-button topbar-button-dropdown" id="tmm-settings">TMM</button>
-                        <button class="topbar-button topbar-button-dropdown" id="controller-settings">Controller</button>
-                        <button class="topbar-button topbar-button-dropdown" id="diva-settings">DIVA</button>
-                        <button class="topbar-button topbar-button-dropdown" id="open-dev-console">Dev-Console</button>
+                    <div class="dropdown">
+                        <button class="topbar-button dropbtn" id="settings-menu">Settings▾</button>
+                        <div class="dropdown-content">
+                            <button class="topbar-button topbar-button-dropdown" id="dml-settings">DML</button>
+                            <button class="topbar-button topbar-button-dropdown" id="tmm-settings">TMM</button>
+                            <button class="topbar-button topbar-button-dropdown" id="controller-settings">Controller</button>
+                            <button class="topbar-button topbar-button-dropdown" id="diva-settings">DIVA</button>
+                            <button class="topbar-button topbar-button-dropdown" id="open-dev-console">Dev-Console</button>
+                        </div>
                     </div>
-                </div>
-                <button class="topbar-button" id="launch-game">Play</button>
-                <button class="topbar-button" id="reload-mods">Reload</button>
-                <select id="profile-selector"></select>
-                <div class="dropdown">
-                    <button class="topbar-button dropbtn" id="profiles-menu">Profiles▾</button>
-                    <div class="dropdown-content">
-                        <button class="topbar-button topbar-button-dropdown" id="create-profile">New Profile</button>
-                        <button class="topbar-button topbar-button-dropdown" id="rename-profile">Rename Profile</button>
-                        <button class="topbar-button topbar-button-dropdown" id="delete-profile">Delete Profile</button>
-                    </div>
+                    <button class="topbar-button" id="launch-game">Play</button>
+                    <button class="topbar-button" id="open-main">Mods</button>
                 </div>
 
-                <button class="topbar-button" id="increase-mod-priority">Increase Priority</button>
-                <button class="topbar-button" id="decrease-mod-priority">Decrease Priority</button>
-                <input type="text" id="search-input" placeholder="Search Installed mods">
+                <div id="page-options">
+
+                </div>
             </div>
 
-            <div class="content">
-                <div class="modslist scrollable"></div>
-                <div id="mod-info-panel" class="scrollable">
-                    <div id="mod-info-panel-default">
-                        <img class="mod-image" src="img/TMM-Banner.png" alt="Teto Mod Manager Logo">
-                        <p>Welcome to Teto Mod Manager</p>
-                        <p>This is an early alpha build and as a result many things may not work as intended.</p>
-                        <p>The final build of TMM will also look a lot nicer, as well as a better layout. Currently, I'm focusing on getting this mod manager working.</p>
-                        <p>For now, you can use this mod manager to manage installed mods, but you will need to manually install the mods.</p>
-                        <p>If you have any questions or concerns, feel free to <a href="https://discord.com/users/201460040564080651">message me on discord.</a></p>
-                        <p>You can also join the <a href="https://discord.gg/megamixplus">Mega Mix+ Modding Server</a> to get help from other modders.</p>
-                        <p>Thanks for using Teto Mod Manager!</p>
-                        <p>-testsnake</p>
 
-                    </div>
+            <div class="content" id="content">
 
-                </div>
             </div>
             <div id="bottombar">
-                <p id="game-version" class="info-text"></p>
-                <p id="mod-count" class="info-text"></p>
-                <p id="mod-loader-version" class="info-text"></p>
-                <p id="tmm-version" class="info-text"></p>
-                <p id="game-path" class="info-text"></p>
-
+                <div id="bottombar-left-side">
+                    <p id="game-version" class="info-text"></p>
+                    <p id="mod-count" class="info-text"></p>
+                    <p id="mod-loader-version" class="info-text"></p>
+                    <p id="tmm-version" class="info-text"></p>
+                    <p id="game-path" class="info-text"></p>
+                </div>
+                <div id="bottombar-right-side">
+                    <p id="latest-update" class="info-text"></p>
+                </div>
 
             </div>
 
@@ -86,6 +70,10 @@
                 <div id="dialog-message"></div>
                 <input id="dialog-input" type="text" hidden>
                 <div id="dialog-buttons"></div>
+            </div>
+            <div id="webpage-overlay"></div>
+            <div id="webpage-box">
+                <iframe id="webpage-iframe"></iframe>
             </div>
 
 
