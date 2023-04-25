@@ -368,6 +368,11 @@ ipcMain.handle('download-file-to-diva', async (event, url, pathDownload) => {
     return await downloadAndUnzip(url, `${gamePath}`);
 });
 
+ipcMain.handle('install-local-file-to-diva', async (event, pathDownload) => {
+    let gamePath = path.join(await getGamePath(), 'mods');
+    return await unzipFile(pathDownload, `${gamePath}`);
+});
+
 
 const createWindow = () => {
 
@@ -927,7 +932,7 @@ async function fetchLatestDMLRelease() {
     }
 }
 
-async function downloadAndUnzip(url, destination) {
+async function downloadAndUnzip(url, destination, shouldDeleteSourceFile = true) {
     try {
         consoleM(`Downloading ${url} to ${destination}`);
         const fileName = path.basename(url);
@@ -978,7 +983,7 @@ async function downloadAndUnzip(url, destination) {
 
             // Unzip the downloaded file
             try {
-                unzipResult = await unzipFile(tempFilePath, destination);
+                unzipResult = await unzipFile(tempFilePath, destination, shouldDeleteSourceFile);
             } catch (error) {
                 sendAlert(`Could not unzip file: ${tempFilePath} Error 0043`);
             }
@@ -1006,7 +1011,7 @@ function getDownloadProgress() {
     return progressList;
 }
 
-async function unzipFile(file, destination) {
+async function unzipFile(file, destination, shouldDeleteSourceFile = false)  {
     try {
         consoleM(`Unzipping ${file} to ${destination}`);
 
@@ -1075,7 +1080,10 @@ async function unzipFile(file, destination) {
                 // Delete the original zip file and return the result
                 await sleep(1000);
                 sendPercentage(100);
-                fs.unlinkSync(file);
+                if (shouldDeleteSourceFile) {
+                    consoleM(`Deleting file: ${file}`);
+                    // fs.unlinkSync(file);
+                }
                 return { complete: true, path: destination, filesize: estimatedSize };
             } catch (error) {
                 if (error.message.includes('Encrypted file')) {

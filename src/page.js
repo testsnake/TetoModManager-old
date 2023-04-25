@@ -71,6 +71,7 @@ function globalEventListeners() {
     const openSettingsButton = document.getElementById('tmm-settings');
     const openGamebananaButton = document.getElementById('open-gamebanana');
     const installArchiveButton = document.getElementById('install-archive');
+    const archiveFileSelector = document.getElementById('archive-file-selector');
     const installGithubButton = document.getElementById('install-github');
     const dmlSettingsButton = document.getElementById('dml-settings');
     const controllerSettingsButton = document.getElementById('controller-settings');
@@ -85,7 +86,16 @@ function globalEventListeners() {
         ipcRenderer.invoke('open-gamebanana');
     }, undefined, 'global');
     addPageEventListener(installArchiveButton, 'click', () => {
-        popupAlert('Installation via Archive Coming Soon')
+        archiveFileSelector.click();
+    }, undefined, 'global');
+    addPageEventListener(archiveFileSelector, 'change', async () => {
+        const files = event.target.files;
+
+        for (const file of files) {
+            const filePath = file.path;
+            console.log('Installing:', filePath);
+            await ipcRenderer.invoke('install-local-file-to-diva', filePath);
+        }
     }, undefined, 'global');
     addPageEventListener(installGithubButton, 'click', () => {
         popupAlert('Installation via Github Coming Soon')

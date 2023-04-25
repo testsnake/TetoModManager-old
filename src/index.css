@@ -221,6 +221,9 @@ body {
     background-color: var(--button-secondary-hover-bg-color);
 }
 
+#archive-file-selector {
+    display: none;
+}
 
 #bottombar {
     display: flex;
