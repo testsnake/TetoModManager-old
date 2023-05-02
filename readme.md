@@ -1,3 +1,12 @@
+## This project has been restarted and has been moved to a [different repo](https://github.com/testsnake/TetoModManager)
+
+
+
+
+------------------------
+------------------------
+------------------------
+
 # Teto Mod Manager
 
 Teto Mod Manager is a mod manager for the game Project DIVA: Mega Mix+. It is designed to be a simple, cross-platform, and portable mod manager.
